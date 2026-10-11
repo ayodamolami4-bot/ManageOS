@@ -4,7 +4,8 @@ const {
   createRequest,
   getAllRequests,
   getRequestById,
-  updateRequestStatus
+  updateRequestStatus,
+  getRecipients
 } = require("../controllers/requestController");
 
 const { authenticate } = require("../middleware/authMiddleware");
@@ -25,6 +26,12 @@ router.get(
   "/requests",
   authenticate,
   getAllRequests
+);
+
+router.get(
+  "/requests/recipients",
+  authenticate,
+  getRecipients
 );
 
 router.get(
