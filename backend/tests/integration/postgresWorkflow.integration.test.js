@@ -138,6 +138,16 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     );
     assert.equal(linkedUnit.status, 201, JSON.stringify(linkedUnit.body));
 
+    const employeeCannotPromote = await employee.post(
+      `/api/project-relationships/${projectId}/leads`, { userId: employeeId }
+    );
+    assert.equal(employeeCannotPromote.status, 403);
+
+    const invalidRelationship = await owner.post(
+      `/api/project-relationships/${projectId}/members`, { userId: "123" }
+    );
+    assert.equal(invalidRelationship.status, 400);
+
     const unauthorizedLead = await owner.post(
       `/api/project-relationships/${projectId}/leads`, { userId: employeeId }
     );
