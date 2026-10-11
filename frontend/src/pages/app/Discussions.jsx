@@ -24,7 +24,7 @@ function Discussions() {
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
-  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(() => Boolean(linkedDiscussionId));
   const [posting, setPosting] = useState(false);
 
   useEffect(() => {
@@ -68,15 +68,6 @@ function Discussions() {
 
     return () => { active = false; };
   }, [selectedId]);
-
-  useEffect(() => {
-    if (linkedDiscussionId) {
-      setSelectedId(linkedDiscussionId);
-      setComments([]);
-      setCommentError("");
-      setCommentsLoading(true);
-    }
-  }, [linkedDiscussionId]);
 
   async function create(event) {
     event.preventDefault();
