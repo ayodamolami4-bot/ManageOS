@@ -302,6 +302,17 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     );
     assert.ok([403, 404].includes(crossCompanyMembership.status));
 
+    const employeeVisibleTasks = await employee.get("/api/tasks");
+    assert.equal(employeeVisibleTasks.status, 200, JSON.stringify(employeeVisibleTasks.body));
+    const employeeTask = employeeVisibleTasks.body.data.find((task) => task.id === taskId);
+    assert.equal(employeeTask?.can_manage, false);
+    assert.equal(employeeTask?.can_review, false);
+    const ownerVisibleTasks = await owner.get("/api/tasks");
+    assert.equal(ownerVisibleTasks.status, 200, JSON.stringify(ownerVisibleTasks.body));
+    const ownerTask = ownerVisibleTasks.body.data.find((task) => task.id === taskId);
+    assert.equal(ownerTask?.can_manage, true);
+    assert.equal(ownerTask?.can_review, true);
+
     const assigned = await owner.post(`/api/tasks/${taskId}/assignments`, {
       userId: employeeId, estimatedEffortHours: 4.5,
     });
