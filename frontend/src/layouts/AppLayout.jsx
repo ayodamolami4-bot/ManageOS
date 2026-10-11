@@ -1,4 +1,8 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../context/AuthContext";
+import { post } from "../services/api";
 import "./AppLayout.css";
 
 const workspaceNavigation = [
@@ -17,25 +21,59 @@ const workspaceNavigation = [
 ];
 
 function AppLayout() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+
+  const displayName =
+    [user?.first_name, user?.last_name].filter(Boolean).join(" ") ||
+    user?.email ||
+    "Company member";
+
+  const initials =
+    [user?.first_name?.[0], user?.last_name?.[0]]
+      .filter(Boolean)
+      .join("")
+      .toUpperCase() ||
+    user?.email?.[0]?.toUpperCase() ||
+    "M";
+
+  async function handleSignOut() {
+    setIsLoggingOut(true);
+    setLogoutError("");
+
+    try {
+      await post("/auth/logout");
+      signOut();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setLogoutError(error?.message || "Unable to sign out. Try again.");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }
+
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
-        <div className="app-brand">
-          <span className="app-brand-mark">
-            <span></span>
-            <span></span>
-            <span></span>
-          </span>
-
-          <div>
-            <strong>ManageOS</strong>
-            <span>Company Operations</span>
+        <div className="app-sidebar-top">
+          <div className="app-brand">
+            <span className="app-brand-mark" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            <div>
+              <strong>ManageOS</strong>
+              <span>Company Operations</span>
+            </div>
           </div>
-        </div>
 
-        <div className="app-company-context">
-          <span>COMPANY OPERATIONS</span>
-          <strong>Workspace</strong>
+          <div className="app-company-context">
+            <span>COMPANY WORKSPACE</span>
+            <strong>Company Operations</strong>
+          </div>
         </div>
 
         <nav className="app-navigation" aria-label="Workspace navigation">
@@ -44,9 +82,7 @@ function AppLayout() {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                isActive
-                  ? "app-nav-link app-nav-link-active"
-                  : "app-nav-link"
+                isActive ? "app-nav-link active" : "app-nav-link"
               }
             >
               {item.label}
@@ -63,14 +99,29 @@ function AppLayout() {
           </div>
 
           <div className="app-user">
-            <div className="app-user-avatar">U</div>
-
+            <div className="app-user-avatar" aria-hidden="true">
+              {initials}
+            </div>
             <div className="app-user-details">
-              <strong>User</strong>
+              <strong>{displayName}</strong>
               <span>Company member</span>
             </div>
+            <button
+              className="app-sign-out"
+              type="button"
+              onClick={handleSignOut}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? "Signing out..." : "Sign out"}
+            </button>
           </div>
         </header>
+
+        {logoutError && (
+          <p className="app-logout-error" role="alert">
+            {logoutError}
+          </p>
+        )}
 
         <main className="app-content">
           <Outlet />
