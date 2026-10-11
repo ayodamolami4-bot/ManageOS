@@ -1,5 +1,8 @@
 const { z } = require("zod");
 
+const personNamePattern = /^[\\p{L}\\p{M}][\\p{L}\\p{M}\\s'’.-]*$/u;
+
+
 const registerCompanySchema = z
   .object({
     companyName: z
@@ -12,13 +15,15 @@ const registerCompanySchema = z
       .string()
       .trim()
       .min(1, "First name is required")
-      .max(100, "First name is too long"),
+      .max(100, "First name is too long")
+      .regex(personNamePattern, "First name must contain letters rather than numbers or symbols"),
 
     lastName: z
       .string()
       .trim()
       .min(1, "Last name is required")
-      .max(100, "Last name is too long"),
+      .max(100, "Last name is too long")
+      .regex(personNamePattern, "Last name must contain letters rather than numbers or symbols"),
 
     email: z
       .string()
