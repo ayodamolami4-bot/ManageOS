@@ -39,15 +39,8 @@ function Updates() {
 
   useEffect(() => {
     let active = true;
-    if (!taskId) {
-      setReports([]);
-      setReportError("");
-      setReportsLoading(false);
-      return () => { active = false; };
-    }
+    if (!taskId) return () => { active = false; };
 
-    setReportsLoading(true);
-    setReportError("");
     get("/tasks/" + taskId + "/reports")
       .then((response) => {
         if (active) setReports(Array.isArray(response?.data) ? response.data : []);
@@ -124,7 +117,7 @@ function Updates() {
             <h2>What changed in the work?</h2>
           </div>
           <button type="button" className="workspace-action workspace-action--secondary"
-            onClick={() => { setTasksLoading(true); setRefreshIndex((n) => n + 1); }}>
+            onClick={() => { setTasksLoading(true); setReportsLoading(Boolean(taskId)); setRefreshIndex((n) => n + 1); }}>
             Refresh
           </button>
         </div>
@@ -137,7 +130,11 @@ function Updates() {
             <div className="workspace-field">
               <label htmlFor="updates-task">Select work</label>
               <select id="updates-task" value={taskId} onChange={(event) => {
-                setTaskId(event.target.value);
+                const next = event.target.value;
+                setTaskId(next);
+                setReports([]);
+                setReportsLoading(Boolean(next));
+                setReportError("");
                 setMessage("");
                 setErrors({});
               }}>
