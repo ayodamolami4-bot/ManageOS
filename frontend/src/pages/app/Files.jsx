@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { API_BASE_URL, del, get, upload } from "../../services/api";
 import { apiErrorMessage } from "../../utils/validation";
@@ -14,6 +14,7 @@ function Files() {
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState("");
   const [items, setItems] = useState([]);
+  const fileInputRef = useRef(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [projectError, setProjectError] = useState("");
@@ -98,7 +99,7 @@ function Files() {
       const response = await upload("/files", formData);
       if (response?.data) setItems((current) => [response.data, ...current]);
       setSelectedFile(null);
-      event.currentTarget?.reset();
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setNotice("File uploaded.");
     } catch (reason) {
       setNotice(apiErrorMessage(reason));
@@ -145,6 +146,11 @@ function Files() {
             <p className="files-section-kicker">DOCUMENTS & RESOURCES</p>
             <h2>Files</h2>
           </div>
+          <button type="button" className="workspace-action workspace-action--secondary"
+            disabled={!projectId || loadingFiles}
+            onClick={() => { setLoadingFiles(true); setVersion((number) => number + 1); }}>
+            Refresh files
+          </button>
         </div>
 
         {loadingProjects && <p className="workspace-feedback" role="status">Loading projects...</p>}
@@ -165,7 +171,7 @@ function Files() {
             <form className="workspace-data-form" onSubmit={submit}>
               <div className="workspace-field workspace-field--wide">
                 <label htmlFor="files-upload">Upload document or image</label>
-                <input id="files-upload" type="file" required disabled={uploading}
+                <input id="files-upload" ref={fileInputRef} type="file" required disabled={uploading}
                   accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                   onChange={(event) => {
                     setSelectedFile(event.target.files?.[0] || null);
