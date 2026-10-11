@@ -507,6 +507,18 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     assert.ok(removalAudit.rows.some((row) => row.action === "PROJECT_MEMBER_REMOVED"));
 
 
+    // Any authenticated employee can choose a colleague when requesting
+    // operational help without permission to view full company profiles.
+    const requestRecipients = await employee.get("/api/requests/recipients");
+    assert.equal(requestRecipients.status, 200, JSON.stringify(requestRecipients.body));
+    assert.ok(requestRecipients.body.data.some((recipient) => recipient.id === ownerId));
+    assert.ok(requestRecipients.body.data.some((recipient) => recipient.id === managerId));
+    assert.ok(requestRecipients.body.data.every((recipient) => !("email" in recipient)));
+    assert.ok(requestRecipients.body.data.every((recipient) => !("password_hash" in recipient)));
+    const outsiderRecipientList = await outsider.get("/api/requests/recipients");
+    assert.equal(outsiderRecipientList.status, 200);
+    assert.ok(!outsiderRecipientList.body.data.some((recipient) => recipient.id === ownerId));
+
     const operationalRequest = await employee.post("/api/requests", {
       assignedTo: ownerId, type: "ACCESS", title: "Repository access",
       description: "Please add my account to the project.",
