@@ -22,6 +22,17 @@ async function createReport(req, res) {
   } catch (error) {
     console.error("Report creation failed:", error);
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "You do not have permission to access these task reports"
+        }
+      });
+    }
+
+
+
     if (error.message === "TASK_NOT_FOUND") {
       return res.status(404).json({
         error: {
@@ -63,6 +74,17 @@ async function getTaskReports(req, res) {
   } catch (error) {
     console.error("Report retrieval failed:", error);
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "You do not have permission to access these task reports"
+        }
+      });
+    }
+
+
+
     if (error.message === "TASK_NOT_FOUND") {
       return res.status(404).json({
         error: {
@@ -94,6 +116,17 @@ async function getReportById(req, res) {
     });
   } catch (error) {
     console.error("Report retrieval failed:", error);
+
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "You do not have permission to access these task reports"
+        }
+      });
+    }
+
+
 
     if (error.message === "REPORT_NOT_FOUND") {
       return res.status(404).json({
