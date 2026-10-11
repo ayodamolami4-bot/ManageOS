@@ -75,6 +75,15 @@ async function createAssignment(
       });
     }
 
+    if (error.message === "EMPLOYEE_UNIT_MEMBERSHIP_REQUIRED") {
+      return res.status(409).json({
+        error: {
+          code: "EMPLOYEE_UNIT_MEMBERSHIP_REQUIRED",
+          message: "Add this employee to an eligible organization unit before assigning work"
+        }
+      });
+    }
+
     if (error.message === "TASK_NOT_ASSIGNABLE") {
       return res.status(409).json({
         error: {
