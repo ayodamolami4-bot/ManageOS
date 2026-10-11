@@ -98,6 +98,31 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     });
     assert.equal(malformedAssignment.status, 400);
 
+    const unassignedEmployee = await owner.post(`/api/tasks/${taskId}/assignments`, {
+      userId: employeeId, estimatedEffortHours: 4.5,
+    });
+    assert.equal(unassignedEmployee.status, 409, JSON.stringify(unassignedEmployee.body));
+    assert.equal(unassignedEmployee.body.error.code, "EMPLOYEE_UNIT_MEMBERSHIP_REQUIRED");
+
+    const newUnit = await owner.post("/api/organization-units", {
+      name: "Operations", type: "Department", parentUnitId: null, description: null,
+    });
+    assert.equal(newUnit.status, 201, JSON.stringify(newUnit.body));
+    const organizationUnitId = newUnit.body.data.id;
+
+    const memberAdded = await owner.post("/api/organization-memberships", {
+      userId: employeeId, organizationUnitId,
+    });
+    assert.equal(memberAdded.status, 201, JSON.stringify(memberAdded.body));
+    const employeeMemberships = await employee.get("/api/organization-memberships/me");
+    assert.equal(employeeMemberships.status, 200, JSON.stringify(employeeMemberships.body));
+    assert.ok(employeeMemberships.body.data.some((m) => m.organization_unit_id === organizationUnitId));
+
+    const crossCompanyMembership = await outsider.get(
+      `/api/organization-memberships/user/${employeeId}`
+    );
+    assert.ok([403, 404].includes(crossCompanyMembership.status));
+
     const assigned = await owner.post(`/api/tasks/${taskId}/assignments`, {
       userId: employeeId, estimatedEffortHours: 4.5,
     });
