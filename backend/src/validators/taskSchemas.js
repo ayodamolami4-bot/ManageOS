@@ -144,7 +144,7 @@ const updateTaskSchema = z
 const changeTaskStatusSchema = z
   .object({
     newStatus: z
-      .enum(TASK_STATUSES)
+      .enum(["IN_PROGRESS"])
   })
   .strict();
 

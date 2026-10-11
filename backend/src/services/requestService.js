@@ -74,21 +74,12 @@ async function createNewRequest({
 }
 
 async function getRequests(user) {
-  return await getCompanyRequests(
-    user.company_id
-  );
+  return await getCompanyRequests(user.company_id, user.id);
 }
 
 async function getRequest(requestId, user) {
-  const request = await getRequestById(requestId);
-
-  if (
-    !request ||
-    request.company_id !== user.company_id
-  ) {
-    throw new Error("REQUEST_NOT_FOUND");
-  }
-
+  const request = await getRequestById(requestId, user.company_id, user.id);
+  if (!request) throw new Error("REQUEST_NOT_FOUND");
   return request;
 }
 
@@ -101,19 +92,9 @@ async function changeRequestStatus(
     throw new Error("INVALID_REQUEST_STATUS");
   }
 
-  const request = await getRequest(
-    requestId,
-    user
-  );
-
-  if (request.status === status) {
-    throw new Error("REQUEST_STATUS_UNCHANGED");
-  }
-
-  return await updateRequestStatus(
-    requestId,
-    status
-  );
+  // This transaction locks the request and re-checks scope and permissions
+  // after acquiring the lock, preventing concurrent status races.
+  return updateRequestStatus(requestId, status, user);
 }
 
 module.exports = {

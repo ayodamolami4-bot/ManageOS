@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { get, post } from "../../services/api";
+import TaskBlockersPanel from "../../components/TaskBlockersPanel";
+import OperationalRequestsPanel from "../../components/OperationalRequestsPanel";
 import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
 import "../../components/WorkspaceData.css";
 import "./Updates.css";
@@ -105,7 +107,7 @@ function Updates() {
           <h1>Updates<span> keep the company informed.</span></h1>
           <p className="updates-intro">
             Post concrete progress reports and review the written history for work you can access.
-            Blockers and operational requests will be integrated separately.
+            Report blockers, request help or approvals, and follow the written history of work.
           </p>
         </div>
       </header>
@@ -208,6 +210,16 @@ function Updates() {
             {!taskId && tasks.length === 0 && <p className="workspace-feedback">No accessible tasks yet.</p>}
           </>
         )}
+      </section>
+
+      {taskId && !tasksLoading && !errorMessage && (
+        <section className="updates-stream">
+          <TaskBlockersPanel key={taskId} taskId={taskId} />
+        </section>
+      )}
+
+      <section className="updates-stream">
+        <OperationalRequestsPanel />
       </section>
     </div>
   );

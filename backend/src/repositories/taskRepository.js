@@ -266,6 +266,7 @@ async function updateTaskStatusWithHistory({
         WHERE id = $1
           AND company_id = $2
         LIMIT 1
+        FOR UPDATE
         `,
         [
           taskId,

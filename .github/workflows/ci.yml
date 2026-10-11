@@ -39,3 +39,130 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm test
+
+  postgres-integration:
+    name: PostgreSQL integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: manageos_test
+          POSTGRES_USER: manageos_ci
+          POSTGRES_PASSWORD: manageos_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U manageos_ci -d manageos_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_NAME: manageos_test
+      DB_USER: manageos_ci
+      DB_PASSWORD: manageos_ci_password
+      NODE_ENV: test
+      RUN_DB_INTEGRATION: "1"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Apply all database migrations
+        run: npm run migrate
+      - name: Exercise real authenticated workflows
+        run: node --test tests/integration/postgresWorkflow.integration.test.js
+
+  browser-e2e:
+    name: Browser E2E (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: manageos_test
+          POSTGRES_USER: manageos_ci
+          POSTGRES_PASSWORD: manageos_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U manageos_ci -d manageos_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_NAME: manageos_test
+      DB_USER: manageos_ci
+      DB_PASSWORD: manageos_ci_password
+      NODE_ENV: test
+      FRONTEND_URL: http://localhost:5173
+      VITE_API_BASE_URL: /api
+      E2E_BASE_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run migrate
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - name: Install isolated browser-test runner
+        run: npm install --no-save --package-lock=false @playwright/test@1.56.1
+        working-directory: frontend
+      - name: Install headless Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Start PostgreSQL-backed API
+        run: nohup node server.js > /tmp/manageos-api.log 2>&1 &
+        working-directory: backend
+      - name: Start Vite with localhost API proxy
+        run: nohup npm run dev -- --host localhost --port 5173 --strictPort > /tmp/manageos-frontend.log 2>&1 &
+        working-directory: frontend
+      - name: Confirm both services are responding
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:5000/api/health >/dev/null &&
+               curl -fsS http://localhost:5173/login >/dev/null; then
+              echo "ManageOS API and frontend ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/manageos-api.log || true
+          cat /tmp/manageos-frontend.log || true
+          exit 1
+      - name: Exercise browser journeys against PostgreSQL
+        run: npx playwright test
+        working-directory: frontend
+      - name: Print service logs on failure
+        if: failure()
+        run: |
+          cat /tmp/manageos-api.log || true
+          cat /tmp/manageos-frontend.log || true
+      - name: Upload browser reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manageos-playwright-results
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7

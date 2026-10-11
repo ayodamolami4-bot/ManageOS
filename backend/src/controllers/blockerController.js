@@ -41,6 +41,12 @@ async function createBlocker(req, res) {
       });
     }
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You are not authorized to access this task's blockers" }
+      });
+    }
+
     res.status(500).json({
       error: {
         code: "BLOCKER_CREATION_FAILED",
@@ -73,6 +79,12 @@ async function getTaskBlockers(req, res) {
       });
     }
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You are not authorized to access this task's blockers" }
+      });
+    }
+
     res.status(500).json({
       error: {
         code: "BLOCKERS_RETRIEVAL_FAILED",
@@ -102,6 +114,12 @@ async function getBlockerById(req, res) {
           code: "BLOCKER_NOT_FOUND",
           message: "Task blocker not found"
         }
+      });
+    }
+
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You are not authorized to access this task's blockers" }
       });
     }
 
@@ -143,6 +161,12 @@ async function resolveBlocker(req, res) {
           code: "BLOCKER_ALREADY_RESOLVED",
           message: "Task blocker is already resolved"
         }
+      });
+    }
+
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You are not authorized to access this task's blockers" }
       });
     }
 

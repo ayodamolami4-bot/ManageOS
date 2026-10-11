@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { get, post } from "../../services/api";
+import MemberAccessControls from "../../components/MemberAccessControls";
 import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
 import "../../components/WorkspaceData.css";
 import "./People.css";
@@ -220,6 +221,7 @@ function People() {
                   <span>Roles: {user.roles?.map((role) => role.name).join(", ") || "No role assigned"}</span>
                   <span>Units: {user.memberships?.map((membership) => membership.organization_unit_name).join(", ") || "No unit assigned"}</span>
                 </div>
+                <MemberAccessControls member={user} roles={roles} units={units} onRefresh={refresh} />
               </article>
             ))}
           </div>

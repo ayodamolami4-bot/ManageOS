@@ -7,6 +7,7 @@ const {
 const {
   createActivityWithClient
 } = require("./activityRepository");
+const { createAuditLogWithClient } = require("./auditLogRepository");
 
 async function createTaskSubmission({
   taskId,
@@ -202,6 +203,16 @@ async function createSubmissionAndChangeStatus({
   }
 );
     
+
+    await createAuditLogWithClient(client, {
+      companyId,
+      actorId: submittedBy,
+      action: "TASK_SUBMITTED",
+      resourceType: "TASK",
+      resourceId: taskId,
+      oldValues: { status: task.status },
+      newValues: { status: "SUBMITTED", submission_id: submissionResult.rows[0].id },
+    });
 
     await client.query("COMMIT");
 

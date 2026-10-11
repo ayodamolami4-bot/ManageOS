@@ -4,7 +4,7 @@ const {
 } = require("../repositories/taskRepository");
 
 const {
-  canChangeTaskStatus
+  canSubmitTask
 } = require("./authorizationService");
 
 const TASK_WORKFLOW = {
@@ -43,10 +43,11 @@ async function changeTaskStatus(
   },
   user
 ) {
-  if (!TASK_WORKFLOW[newStatus]) {
-    throw new Error(
-      "INVALID_STATUS"
-    );
+  // Submission and review transitions must use their dedicated
+  // endpoints so a direct status change cannot bypass evidence,
+  // reviewer permission, notifications, or the audit trail.
+  if (newStatus !== "IN_PROGRESS") {
+    throw new Error("INVALID_STATUS_TRANSITION");
   }
 
   const task =
@@ -62,10 +63,9 @@ async function changeTaskStatus(
   }
 
   const allowed =
-    await canChangeTaskStatus(
+    await canSubmitTask(
       user,
-      taskId,
-      newStatus
+      taskId
     );
 
   if (!allowed) {

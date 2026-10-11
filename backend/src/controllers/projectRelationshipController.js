@@ -1,7 +1,12 @@
 const {
   assignProjectLead,
   addProjectMemberToProject,
-  linkProjectOrganizationUnit
+  linkProjectOrganizationUnit,
+  getProjectMembers,
+  getProjectLeadsForCompany,
+  getProjectUnitsForCompany,
+  removeProjectMember,
+  removeProjectLead
 } = require("../services/projectRelationshipService");
 
 async function assignLead(req, res) {
@@ -34,6 +39,20 @@ async function assignLead(req, res) {
           code: "USER_NOT_FOUND",
           message: "User not found in your company"
         }
+      });
+    }
+
+    if (error.message === "USER_NOT_ELIGIBLE_TO_LEAD") {
+      return res.status(422).json({
+        error: {
+          code: "USER_NOT_ELIGIBLE_TO_LEAD",
+          message: "Choose a manager or team lead with scope over the project"
+        }
+      });
+    }
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: { code: "PROJECT_LEAD_ALREADY_EXISTS", message: "This person already leads the project" }
       });
     }
 
@@ -76,6 +95,12 @@ async function addMember(req, res) {
           code: "USER_NOT_FOUND",
           message: "User not found in your company"
         }
+      });
+    }
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: { code: "PROJECT_MEMBER_ALREADY_EXISTS", message: "This relationship already exists" }
       });
     }
 
@@ -124,6 +149,12 @@ async function addOrganizationUnit(req, res) {
       });
     }
 
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: { code: "PROJECT_UNIT_ALREADY_LINKED", message: "This relationship already exists" }
+      });
+    }
+
     res.status(500).json({
       error: {
         code: "PROJECT_ORGANIZATION_UNIT_LINK_FAILED",
@@ -133,8 +164,82 @@ async function addOrganizationUnit(req, res) {
   }
 }
 
+async function getMembers(req, res) {
+  try {
+    const users = await getProjectMembers(req.params.projectId, req.user);
+    res.json({ data: users });
+  } catch (error) {
+    console.error("Project member retrieval failed:", error);
+    res.status(500).json({ error: { code: "PROJECT_MEMBERS_FAILED", message: "Unable to load project members" } });
+  }
+}
+
+async function getLeads(req, res) {
+  try {
+    const data = await getProjectLeadsForCompany(req.params.projectId, req.user);
+    res.json({ data });
+  } catch (error) {
+    if (error.message === "PROJECT_NOT_FOUND") {
+      return res.status(404).json({ error: { code: "PROJECT_NOT_FOUND", message: "Project not found" } });
+    }
+    console.error("Project lead retrieval failed:", error);
+    res.status(500).json({ error: { code: "PROJECT_LEADS_FAILED", message: "Unable to load project leads" } });
+  }
+}
+
+async function getUnits(req, res) {
+  try {
+    const data = await getProjectUnitsForCompany(req.params.projectId, req.user);
+    res.json({ data });
+  } catch (error) {
+    if (error.message === "PROJECT_NOT_FOUND") {
+      return res.status(404).json({ error: { code: "PROJECT_NOT_FOUND", message: "Project not found" } });
+    }
+    console.error("Project unit retrieval failed:", error);
+    res.status(500).json({ error: { code: "PROJECT_UNITS_FAILED", message: "Unable to load project units" } });
+  }
+}
+
+
+async function deleteRelation(req, res, remove, description) {
+  try {
+    const data = await remove(req.params.projectId, req.params.userId, req.user);
+    res.json({ data, message: description + " removed" });
+  } catch (error) {
+    const code = error.message;
+    if (["PROJECT_NOT_FOUND", "PROJECT_RELATIONSHIP_NOT_FOUND"].includes(code)) {
+      return res.status(404).json({
+        error: { code, message: "Project relationship not found" },
+      });
+    }
+    const conflicts = {
+      PROJECT_MEMBER_HAS_ACTIVE_TASKS:
+        "End or reassign active tasks before removing this project member",
+      REMOVE_PROJECT_LEAD_FIRST:
+        "Remove this user's project-lead role before removing membership",
+      LAST_PROJECT_MANAGER:
+        "Assign another qualified Manager as project lead before removing this lead",
+    };
+    if (conflicts[code]) {
+      return res.status(409).json({ error: { code, message: conflicts[code] } });
+    }
+    console.error("Project relationship removal failed:", error);
+    res.status(500).json({
+      error: { code: "PROJECT_RELATIONSHIP_REMOVAL_FAILED", message: "Unable to remove project relationship" },
+    });
+  }
+}
+
+const deleteMember = (req, res) => deleteRelation(req, res, removeProjectMember, "Project member");
+const deleteLead = (req, res) => deleteRelation(req, res, removeProjectLead, "Project lead");
+
 module.exports = {
   assignLead,
   addMember,
-  addOrganizationUnit
+  addOrganizationUnit,
+  getMembers,
+  getLeads,
+  getUnits,
+  deleteMember,
+  deleteLead
 };
