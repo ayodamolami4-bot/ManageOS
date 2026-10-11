@@ -93,6 +93,7 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
   const employee = await newClient();
   const outsider = await newClient();
   const scopedLead = await newClient();
+  const scopedManager = await newClient();
 
   try {
     const { companyId, userId: ownerId } = await registerAndLogin(
@@ -195,6 +196,30 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       userId: employeeId, organizationUnitId,
     });
     assert.equal(memberAdded.status, 201, JSON.stringify(memberAdded.body));
+    // Scoped managers may manage their existing unit, but must not
+    // create arbitrary company-wide units just because they hold a role.
+    const scopedManagerEmail = "scoped-manager-integration@manageos.test";
+    const managerPasswordHash = await hashPassword(secret);
+    const scopedManagerUser = await pool.query(
+      `INSERT INTO users (company_id, first_name, last_name, email, password_hash)
+       VALUES ($1, 'Scoped', 'Manager', $2, $3) RETURNING id`,
+      [companyId, scopedManagerEmail, managerPasswordHash]
+    );
+    await pool.query(
+      `INSERT INTO user_roles (user_id, role_id, organization_unit_id, assigned_by)
+       SELECT $1, r.id, $2, $3 FROM roles r
+       WHERE r.name = 'MANAGER' AND r.company_id IS NULL AND r.is_system = TRUE`,
+      [scopedManagerUser.rows[0].id, organizationUnitId, ownerId]
+    );
+    const scopedLogin = await scopedManager.post("/api/auth/login", {
+      email: scopedManagerEmail, password: secret,
+    });
+    assert.equal(scopedLogin.status, 200, JSON.stringify(scopedLogin.body));
+    const unauthorizedUnit = await scopedManager.post("/api/organization-units", {
+      name: "Unauthorized company unit", type: "Department", parentUnitId: null, description: null,
+    });
+    assert.equal(unauthorizedUnit.status, 403, JSON.stringify(unauthorizedUnit.body));
+
     const managerId = await createManager(companyId, ownerId);
     const rolesResponse = await owner.get("/api/users/roles");
     assert.equal(rolesResponse.status, 200, JSON.stringify(rolesResponse.body));
