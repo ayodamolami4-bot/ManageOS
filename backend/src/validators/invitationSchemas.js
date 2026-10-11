@@ -1,6 +1,6 @@
 const { z } = require("zod");
 
-const personNamePattern = /^[\\p{L}\\p{M}][\\p{L}\\p{M}\\s'’.-]*$/u;
+const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}\s'’.-]*$/u;
 
 
 const uuidSchema = z
