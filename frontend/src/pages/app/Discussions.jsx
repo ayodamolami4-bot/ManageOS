@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../context/useAuth";
 import { get, post } from "../../services/api";
@@ -7,6 +8,8 @@ import "../../components/WorkspaceData.css";
 import "./Discussions.css";
 
 function Discussions() {
+  const [searchParams] = useSearchParams();
+  const linkedDiscussionId = searchParams.get("discussionId") || "";
   const { user } = useAuth();
   const [discussions, setDiscussions] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -17,7 +20,7 @@ function Discussions() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(() => linkedDiscussionId);
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -65,6 +68,15 @@ function Discussions() {
 
     return () => { active = false; };
   }, [selectedId]);
+
+  useEffect(() => {
+    if (linkedDiscussionId) {
+      setSelectedId(linkedDiscussionId);
+      setComments([]);
+      setCommentError("");
+      setCommentsLoading(true);
+    }
+  }, [linkedDiscussionId]);
 
   async function create(event) {
     event.preventDefault();
@@ -204,11 +216,19 @@ function Discussions() {
         {loading && <p className="workspace-feedback" role="status">Loading discussions...</p>}
         {!loading && loadError && <p className="workspace-feedback" role="alert">{loadError}</p>}
         {!loading && !loadError && discussions.length === 0 && <p className="workspace-feedback">No discussions have been started yet.</p>}
+        {!loading && !loadError && linkedDiscussionId &&
+         !discussions.some((discussion) => discussion.id === linkedDiscussionId) && (
+          <p className="workspace-feedback" role="status">
+            The linked discussion is not accessible to your account.
+          </p>
+        )}
 
         {!loading && !loadError && (
           <div className="workspace-data-list">
             {discussions.map((discussion) => (
-              <article className="workspace-data-item" key={discussion.id}>
+              <article className="workspace-data-item" key={discussion.id}
+                id={"discussion-" + discussion.id}
+                style={discussion.id === linkedDiscussionId ? { borderLeft: "4px solid var(--copper)" } : undefined}>
                 <div className="workspace-data-row">
                   <div>
                     <h3>{discussion.title}</h3>
