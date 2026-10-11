@@ -225,7 +225,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             <span>Submissions: {submissions.length}</span>
           </div>
 
-          {!active && companyUsers !== null && members.length > 0 && (
+          {!active && members.length > 0 && (
             <form className="workspace-data-form" onSubmit={assign} noValidate>
               <div className="workspace-field">
                 <label htmlFor={"assignee-" + task.id}>Assign to project member</label>
@@ -276,7 +276,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             </form>
           )}
 
-          {active && companyUsers !== null && (
+          {active && (
             <button type="button" className="workspace-action workspace-action--secondary"
               disabled={busy} onClick={endAssignment}>End assignment</button>
           )}
