@@ -231,6 +231,34 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await employee.goto("/app/notifications");
     await expect(employee.getByText("Task approved and completed").first()).toBeVisible();
 
+    // Request recipient selection, delivery, deep-link and resolution are
+    // real Owner/Employee operations, even without /users directory access.
+    await employee.goto("/app/updates");
+    await employee.getByRole("button", { name: "New request" }).click();
+    const requestTitle = `Approve project access ${id}`;
+    await employee.locator("#request-assignee").selectOption({ label: "Owner Tester" });
+    await employee.locator("#request-title").fill(requestTitle);
+    await employee.getByRole("button", { name: "Create request" }).click();
+    await expect(employee.getByText("Request created.")).toBeVisible();
+
+    await owner.goto("/app/notifications");
+    const requestNotice = owner.locator("article.workspace-data-item").filter({
+      hasText: "New operational request",
+    });
+    await expect(requestNotice.getByRole("link", { name: "Open related work" })).toBeVisible();
+    await requestNotice.getByRole("link", { name: "Open related work" }).click();
+    await expect(owner).toHaveURL(/\/app\/updates\?requestId=[0-9a-f-]+/i);
+    const linkedRequest = owner.locator("article.workspace-data-item").filter({
+      has: owner.getByRole("heading", { name: requestTitle }),
+    });
+    await expect(linkedRequest).toBeVisible();
+    await linkedRequest.getByRole("button", { name: "Resolve" }).click();
+    await expect(linkedRequest.getByText("Status: RESOLVED")).toBeVisible();
+
+    await employee.goto("/app/notifications");
+    await expect(employee.getByText("Your request was updated").first()).toBeVisible();
+
+
     // Role-specific browser access: real invitations + scoped project leads.
     await inviteAndJoin(owner, manager, {
       email: `manager-${id}@manageos.test`,
