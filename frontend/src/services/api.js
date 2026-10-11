@@ -121,6 +121,14 @@ export function patch(path, body, options = {}) {
   });
 }
 
+export function upload(path, formData, options = {}) {
+  return apiRequest(path, {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+}
+
 export function del(path, options = {}) {
   return apiRequest(path, { ...options, method: "DELETE" });
 }
