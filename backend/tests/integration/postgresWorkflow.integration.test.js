@@ -54,12 +54,12 @@ async function createEmployee(companyId, ownerId) {
   return employeeId;
 }
 
-async function createManager(companyId, ownerId) {
+async function createManager(companyId, ownerId, email = "manager-integration@manageos.test") {
   const result = await pool.query(
     `INSERT INTO users (company_id, first_name, last_name, email, password_hash)
-     VALUES ($1, 'Manager', 'Tester', 'manager-integration@manageos.test', $2)
+     VALUES ($1, 'Manager', 'Tester', $2, $3)
      RETURNING id`,
-    [companyId, await hashPassword(secret)]
+    [companyId, email, await hashPassword(secret)]
   );
   const managerId = result.rows[0].id;
   await pool.query(
@@ -470,6 +470,42 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     );
     assert.equal(lastManagerRemoval.status, 409, JSON.stringify(lastManagerRemoval.body));
     assert.equal(lastManagerRemoval.body.error.code, "LAST_PROJECT_MANAGER");
+    const secondManagerId = await createManager(
+      companyId, ownerId, "manager-two-integration@manageos.test"
+    );
+    const managerReplacement = await owner.post(
+      `/api/project-relationships/${projectId}/leads`, { userId: secondManagerId }
+    );
+    assert.equal(managerReplacement.status, 201, JSON.stringify(managerReplacement.body));
+
+    const managerTaskEnded = await owner.put(
+      `/api/task-assignments/${handoff.body.data.id}/end`, {}
+    );
+    assert.equal(managerTaskEnded.status, 200, JSON.stringify(managerTaskEnded.body));
+
+    const cannotRemoveLeadMember = await owner.remove(
+      `/api/project-relationships/${projectId}/members/${managerId}`
+    );
+    assert.equal(cannotRemoveLeadMember.status, 409, JSON.stringify(cannotRemoveLeadMember.body));
+    assert.equal(cannotRemoveLeadMember.body.error.code, "REMOVE_PROJECT_LEAD_FIRST");
+
+    const leadRetired = await owner.remove(
+      `/api/project-relationships/${projectId}/leads/${managerId}`
+    );
+    assert.equal(leadRetired.status, 200, JSON.stringify(leadRetired.body));
+    const managerMemberRemoved = await owner.remove(
+      `/api/project-relationships/${projectId}/members/${managerId}`
+    );
+    assert.equal(managerMemberRemoved.status, 200, JSON.stringify(managerMemberRemoved.body));
+
+    const removalAudit = await pool.query(
+      `SELECT action FROM audit_logs WHERE company_id = $1
+       AND resource_id = $2 AND action IN ('PROJECT_LEAD_REMOVED','PROJECT_MEMBER_REMOVED')`,
+      [companyId, projectId]
+    );
+    assert.ok(removalAudit.rows.some((row) => row.action === "PROJECT_LEAD_REMOVED"));
+    assert.ok(removalAudit.rows.some((row) => row.action === "PROJECT_MEMBER_REMOVED"));
+
 
     const operationalRequest = await employee.post("/api/requests", {
       assignedTo: ownerId, type: "ACCESS", title: "Repository access",
