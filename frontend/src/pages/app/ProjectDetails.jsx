@@ -141,7 +141,7 @@ function ProjectDetails() {
           </section>
 
           <section className="project-details-milestones">
-            <ProjectRelationshipsPanel projectId={projectId} />
+            <ProjectRelationshipsPanel projectId={projectId} canManage={Boolean(project.can_manage)} />
           </section>
 
           <section className="project-details-milestones">
