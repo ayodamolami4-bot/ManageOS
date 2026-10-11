@@ -3,10 +3,21 @@ const {
   acceptUserInvitation
 } = require("../services/invitationService");
 
+const emailService = require("../services/emailService");
+const { revokeUndeliveredInvitation } = require("../repositories/invitationRepository");
+
 async function createInvitation(
   req,
   res
 ) {
+  if (process.env.NODE_ENV === "production" && !emailService.configured()) {
+    return res.status(503).json({
+      error: {
+        code: "INVITATION_DELIVERY_UNAVAILABLE",
+        message: "Invitation email delivery is not configured."
+      }
+    });
+  }
   try {
     const result =
       await createUserInvitation(
@@ -22,6 +33,34 @@ async function createInvitation(
         },
         req.user
       );
+
+    if (process.env.NODE_ENV === "production") {
+      try {
+        await emailService.sendInvitationEmail({
+          to: req.body.email,
+          token: result.token,
+          companyName: req.user.company_name,
+          invitationId: result.invitation.id,
+        });
+      } catch (deliveryError) {
+        console.error("Invitation delivery could not complete.");
+        try {
+          await revokeUndeliveredInvitation({
+            invitationId: result.invitation.id,
+            companyId: req.user.company_id,
+            actorId: req.user.id,
+          });
+        } catch (cleanupError) {
+          console.error("Invitation delivery cleanup failed.");
+        }
+        return res.status(503).json({
+          error: {
+            code: "INVITATION_DELIVERY_FAILED",
+            message: "Invitation could not be delivered. Please try again later."
+          }
+        });
+      }
+    }
 
     const response = {
       data: {
