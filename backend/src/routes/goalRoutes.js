@@ -17,11 +17,20 @@ const {
   requireGoalManagement
 } = require("../middleware/goalAuthorization");
 
+const { z } = require("zod");
+const { validateBody, validateParams } = require("../middleware/validate");
+const { createGoalSchema, updateGoalSchema } = require("../validators/goalSchemas");
+
+const goalIdSchema = z.object({
+  goalId: z.string().uuid("Invalid goal reference")
+}).strict();
+
 const router = express.Router();
 
 router.post(
   "/",
   authenticate,
+  validateBody(createGoalSchema),
   requireGoalManagement,
   createGoal
 );
@@ -36,6 +45,7 @@ router.get(
 router.get(
   "/:goalId",
   authenticate,
+  validateParams(goalIdSchema),
   requireGoalView,
   getGoalById
 );
@@ -43,6 +53,8 @@ router.get(
 router.put(
   "/:goalId",
   authenticate,
+  validateParams(goalIdSchema),
+  validateBody(updateGoalSchema),
   requireGoalManagement,
   updateGoal
 );
@@ -50,6 +62,7 @@ router.put(
 router.delete(
   "/:goalId",
   authenticate,
+  validateParams(goalIdSchema),
   requireGoalManagement,
   deleteGoal
 );

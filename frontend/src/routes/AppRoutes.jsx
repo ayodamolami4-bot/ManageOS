@@ -15,6 +15,7 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 import Invite from "../pages/auth/Invite";
 
+import ProtectedRoute from "./ProtectedRoute";
 import AppLayout from "../layouts/AppLayout";
 import Overview from "../pages/app/Overview";
 import Goals from "../pages/app/Goals";
@@ -48,21 +49,23 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/invite" element={<Invite />} />
 
-      <Route path="/app" element={<AppLayout />}>
-        <Route index element={<Navigate to="overview" replace />} />
-        <Route path="overview" element={<Overview />} />
-        <Route path="goals" element={<Goals />} />
-        <Route path="organization" element={<Organization />} />
-         <Route path="work" element={<Work />} />
-        <Route path="projects" element={<Projects />} />
-        <Route path="projects/:projectId" element={<ProjectDetails />} />
-        <Route path="updates" element={<Updates />} />
-        <Route path="discussions" element={<Discussions />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="activity" element={<Activity />} />
-        <Route path="audit" element={<Audit />} />
-        <Route path="files" element={<Files />} />
-        <Route path="people" element={<People />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/app" element={<AppLayout />}>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<Overview />} />
+          <Route path="goals" element={<Goals />} />
+          <Route path="organization" element={<Organization />} />
+          <Route path="work" element={<Work />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="projects/:projectId" element={<ProjectDetails />} />
+          <Route path="updates" element={<Updates />} />
+          <Route path="discussions" element={<Discussions />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="activity" element={<Activity />} />
+          <Route path="audit" element={<Audit />} />
+          <Route path="files" element={<Files />} />
+          <Route path="people" element={<People />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,17 +8,23 @@ const {
 
 const { authenticate } = require("../middleware/authMiddleware");
 
+const { validateBody, validateParams } = require("../middleware/validate");
+const { reportBodySchema, taskIdParamsSchema } = require("../validators/reportSchemas");
+
 const router = express.Router();
 
 router.post(
   "/tasks/:taskId/reports",
   authenticate,
+  validateParams(taskIdParamsSchema),
+  validateBody(reportBodySchema),
   createReport
 );
 
 router.get(
   "/tasks/:taskId/reports",
   authenticate,
+  validateParams(taskIdParamsSchema),
   getTaskReports
 );
 

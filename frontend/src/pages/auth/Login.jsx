@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../../context/useAuth";
 
 import { post } from "../../services/api";
 import "./Login.css";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,14 +31,21 @@ function Login() {
     try {
       setIsSubmitting(true);
 
-      await post("/auth/login", {
+      const response = await post("/auth/login", {
         email: email.trim(),
         password,
       });
 
-      navigate("/app/overview", {
-        replace: true,
-      });
+      signIn(response.data);
+
+      const from = location.state?.from;
+      const target =
+        from?.pathname === "/app" ||
+        from?.pathname?.startsWith("/app/")
+          ? from.pathname + (from.search || "") + (from.hash || "")
+          : "/app/overview";
+
+      navigate(target, { replace: true });
     } catch (error) {
       const backendMessage =
         error?.data?.error?.message ||
@@ -121,6 +132,14 @@ function Login() {
             </span>
           </div>
 
+          {(location.state?.accountCreated || location.state?.invitationAccepted) && (
+            <p className="login-security-note" role="status">
+              {location.state?.accountCreated
+                ? "Your company account has been created. Sign in to continue."
+                : "Invitation accepted. Sign in to your company workspace."}
+            </p>
+          )}
+
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="login-field">
               <label htmlFor="email">Email address</label>
@@ -130,6 +149,8 @@ function Login() {
                 name="email"
                 type="email"
                 autoComplete="email"
+                maxLength={254}
+                required
                 placeholder="you@company.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -149,6 +170,8 @@ function Login() {
                 name="password"
                 type="password"
                 autoComplete="current-password"
+                maxLength={128}
+                required
                 placeholder="Enter your password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}

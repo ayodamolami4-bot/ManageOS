@@ -21,7 +21,9 @@ const {
 } = require("../utils/fileContentValidator");
 
 const {
-  canManageProject
+  canManageProject,
+  canViewProject,
+  canViewTask
 } = require("./authorizationService");
 
 const fsPromises = require("fs/promises");
@@ -191,6 +193,14 @@ async function getProjectIdForResource(
   );
 }
 
+async function requireFileResourceAccess(resourceType, resourceId, user) {
+  const allowed = resourceType === "PROJECT"
+    ? await canViewProject(user, resourceId)
+    : await canViewTask(user, resourceId);
+
+  if (!allowed) throw new Error("FILE_ACCESS_FORBIDDEN");
+}
+
 function toPublicFile(file) {
   return {
     id: file.id,
@@ -236,11 +246,20 @@ async function uploadFile(
       resourceType
     );
 
-  await verifyResourceBelongsToCompany(
-    normalizedType,
-    resourceId,
-    user.company_id
-  );
+  try {
+    await verifyResourceBelongsToCompany(
+      normalizedType,
+      resourceId,
+      user.company_id
+    );
+    await requireFileResourceAccess(normalizedType, resourceId, user);
+  } catch (error) {
+    // Multer has already placed the upload in temporary storage.
+    await deleteTemporaryFile(file.path).catch((cleanupError) => {
+      console.error("Temporary upload cleanup failed:", cleanupError);
+    });
+    throw error;
+  }
 
   const originalName =
     path.basename(
@@ -396,6 +415,7 @@ async function getFiles(
     resourceId,
     user.company_id
   );
+  await requireFileResourceAccess(normalizedType, resourceId, user);
 
   const files =
     await getFilesByResource(
@@ -428,14 +448,11 @@ async function getFile(
     );
 
   if (!file) {
-    throw new Error(
-      "FILE_NOT_FOUND"
-    );
+    throw new Error("FILE_NOT_FOUND");
   }
+  await requireFileResourceAccess(file.resource_type, file.resource_id, user);
 
-  return toPublicFile(
-    file
-  );
+  return toPublicFile(file);
 }
 
 async function getFileForDownload(
@@ -461,6 +478,8 @@ async function getFileForDownload(
       "FILE_NOT_FOUND"
     );
   }
+
+  await requireFileResourceAccess(file.resource_type, file.resource_id, user);
 
   const storagePath =
     resolveStoragePath(
@@ -511,6 +530,8 @@ async function deleteFile(
       "FILE_NOT_FOUND"
     );
   }
+
+  await requireFileResourceAccess(existingFile.resource_type, existingFile.resource_id, user);
 
   const isUploader =
     existingFile.uploaded_by ===

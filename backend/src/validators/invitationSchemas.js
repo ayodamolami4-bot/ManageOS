@@ -1,5 +1,8 @@
 const { z } = require("zod");
 
+const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}\s'’.-]*$/u;
+
+
 const uuidSchema = z
   .string()
   .uuid("Invalid UUID");
@@ -49,7 +52,8 @@ const acceptInvitationSchema = z
       .max(
         100,
         "First name is too long"
-      ),
+      )
+      .regex(personNamePattern, "First name must contain letters rather than numbers or symbols"),
 
     lastName: z
       .string()
@@ -61,7 +65,8 @@ const acceptInvitationSchema = z
       .max(
         100,
         "Last name is too long"
-      ),
+      )
+      .regex(personNamePattern, "Last name must contain letters rather than numbers or symbols"),
 
     password: z
       .string()

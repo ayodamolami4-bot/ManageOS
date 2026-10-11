@@ -32,21 +32,31 @@ async function createOrganizationUnit(req, res) {
       });
     }
 
-    res.status(500).json({
+    if (error.message === "PARENT_UNIT_NOT_FOUND") {
+      return res.status(404).json({
+        error: {
+          code: "PARENT_UNIT_NOT_FOUND",
+          message: "Parent organization unit not found"
+        }
+      });
+    }
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: {
+          code: "UNIT_NAME_ALREADY_EXISTS",
+          message: "An organization unit with that name already exists"
+        }
+      });
+    }
+
+    return res.status(500).json({
       error: {
         code: "ORGANIZATION_UNIT_CREATION_FAILED",
         message: "Unable to create organization unit"
       }
     });
   }
-  if (error.message === "PARENT_UNIT_NOT_FOUND") {
-  return res.status(404).json({
-    error: {
-      code: "PARENT_UNIT_NOT_FOUND",
-      message: "Parent organization unit not found"
-    }
-  });
-}
 }
 async function getOrganizationUnits(req, res) {
   try {

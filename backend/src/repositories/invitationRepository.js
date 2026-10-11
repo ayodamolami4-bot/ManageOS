@@ -1,16 +1,8 @@
-const crypto = require("crypto");
 const pool = require("../db/database");
 
 const {
   createActivityWithClient
 } = require("./activityRepository");
-
-function hashInvitationToken(token) {
-  return crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
-}
 
 async function createInvitation({
   companyId,
@@ -18,19 +10,13 @@ async function createInvitation({
   invitedBy,
   roleId,
   organizationUnitId,
+  tokenHash,
   expiresAt
 }) {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
-
-    const token = crypto
-      .randomBytes(32)
-      .toString("hex");
-
-    const tokenHash =
-      hashInvitationToken(token);
 
     const result = await client.query(
       `
@@ -128,10 +114,7 @@ async function createInvitation({
 
     await client.query("COMMIT");
 
-    return {
-      invitation,
-      token
-    };
+    return { invitation };
   } catch (error) {
     await client.query("ROLLBACK");
 
@@ -423,7 +406,6 @@ async function acceptInvitation({
 }
 
 module.exports = {
-  hashInvitationToken,
   createInvitation,
   acceptInvitation
 };

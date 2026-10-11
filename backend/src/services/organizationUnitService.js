@@ -11,7 +11,7 @@ async function createUnit({
   description
 }, user) {
 
-  if (user.company_id !== companyId) {
+  if (companyId && user.company_id !== companyId) {
     throw new Error("COMPANY_ACCESS_DENIED");
   }
 
@@ -27,11 +27,11 @@ async function createUnit({
   }
 
   return await createOrganizationUnit({
-    companyId,
-    parentUnitId,
+    companyId: user.company_id,
+    parentUnitId: parentUnitId || null,
     name,
     type,
-    description
+    description: description ?? null
   });
 }
 async function getUnits(user) {

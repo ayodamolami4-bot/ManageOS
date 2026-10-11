@@ -1,6 +1,71 @@
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
+import { post } from "../../services/api";
+import { apiErrorMessage, apiFieldErrors, validateName } from "../../utils/validation";
 import "./Invite.css";
 
 function Invite() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get("token") || "";
+  const validToken = /^[a-f0-9]{64}$/i.test(token);
+  const [form, setForm] = useState({
+    firstName: "", lastName: "", password: "", confirmPassword: "",
+  });
+  const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function update(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: "" }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    const nextErrors = {};
+
+    if (!validToken) nextErrors.token = "A valid invitation link is required.";
+    const first = validateName(form.firstName, "First name");
+    const last = validateName(form.lastName, "Last name");
+    if (first) nextErrors.firstName = first;
+    if (last) nextErrors.lastName = last;
+    if (form.password.length < 12 || form.password.length > 128) {
+      nextErrors.password = "Password must be between 12 and 128 characters.";
+    }
+    if (form.password !== form.confirmPassword) {
+      nextErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    setErrors(nextErrors);
+    setErrorMessage("");
+    if (Object.keys(nextErrors).length) return;
+
+    setSaving(true);
+    try {
+      await post("/invitations/accept", {
+        token,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        password: form.password,
+      });
+
+      navigate("/login", { replace: true, state: { invitationAccepted: true } });
+    } catch (error) {
+      setErrors(apiFieldErrors(error));
+      setErrorMessage(apiErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function fieldError(field) {
+    return errors[field] ? (
+      <span role="alert" style={{ color: "#a44333" }}>{errors[field]}</span>
+    ) : null;
+  }
+
   return (
     <main className="invite-page">
       <div className="invite-background" aria-hidden="true">
@@ -92,71 +157,84 @@ function Invite() {
           </div>
 
           <div className="invite-company">
-            <span className="invite-company-label">Invited by</span>
-
-            <strong>Acme Commerce Ltd.</strong>
-
+            <span className="invite-company-label">Invitation status</span>
+            <strong>{validToken ? "Invitation link received" : "Invitation link required"}</strong>
             <p>
-              You’ve been invited to join this company on ManageOS.
+              {validToken
+                ? "Your company, role and invitation status will be verified securely when you accept."
+                : "Open the unique invitation link provided by your company administrator."}
             </p>
           </div>
 
-          <form className="invite-form">
+          <form className="invite-form" onSubmit={handleSubmit} noValidate>
             <div className="invite-field">
-              <label htmlFor="invite-name">Full name</label>
-
+              <label htmlFor="invite-first">First name</label>
               <input
-                id="invite-name"
-                name="fullName"
+                id="invite-first"
                 type="text"
-                autoComplete="name"
-                placeholder="Your full name"
+                autoComplete="given-name"
+                required
+                maxLength={100}
+                disabled={saving}
+                value={form.firstName}
+                aria-invalid={Boolean(errors.firstName)}
+                onChange={(event) => update("firstName", event.target.value)}
               />
+              {fieldError("firstName")}
             </div>
-
             <div className="invite-field">
-              <label htmlFor="invite-email">Email address</label>
-
+              <label htmlFor="invite-last">Last name</label>
               <input
-                id="invite-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@company.com"
+                id="invite-last"
+                type="text"
+                autoComplete="family-name"
+                required
+                maxLength={100}
+                disabled={saving}
+                value={form.lastName}
+                aria-invalid={Boolean(errors.lastName)}
+                onChange={(event) => update("lastName", event.target.value)}
               />
-
-              <span>
-                Use the email address that received the invitation.
-              </span>
+              {fieldError("lastName")}
             </div>
-
             <div className="invite-field">
               <label htmlFor="invite-password">Create password</label>
-
               <input
                 id="invite-password"
-                name="password"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Create a password"
+                minLength={12}
+                maxLength={128}
+                required
+                disabled={saving}
+                value={form.password}
+                aria-invalid={Boolean(errors.password)}
+                onChange={(event) => update("password", event.target.value)}
               />
-
-              <span>
-                Use at least 8 characters with a letter and a number.
-              </span>
+              <span>Use at least 12 characters.</span>
+              {fieldError("password")}
             </div>
-
-            <label className="invite-terms">
-              <input type="checkbox" name="terms" />
-
-              <span>
-                I agree to the <a href="/terms">ManageOS Terms</a> and{" "}
-                <a href="/privacy">Privacy Policy</a>.
-              </span>
-            </label>
-
-            <button type="submit" className="invite-submit">
-              Accept invitation
+            <div className="invite-field">
+              <label htmlFor="invite-confirm">Confirm password</label>
+              <input
+                id="invite-confirm"
+                type="password"
+                autoComplete="new-password"
+                required
+                disabled={saving}
+                value={form.confirmPassword}
+                aria-invalid={Boolean(errors.confirmPassword)}
+                onChange={(event) => update("confirmPassword", event.target.value)}
+              />
+              {fieldError("confirmPassword")}
+            </div>
+            {(errorMessage || errors.token) && (
+              <p role="alert" style={{ color: "#a44333" }}>
+                {errorMessage || errors.token}
+              </p>
+            )}
+            <button type="submit" className="invite-submit" disabled={saving || !validToken}>
+              {saving ? "Accepting..." : "Accept invitation"}
               <span aria-hidden="true">→</span>
             </button>
           </form>

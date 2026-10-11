@@ -13,7 +13,7 @@ const router = express.Router();
 router.get(
   "/activities",
   authenticate,
-  authorize("audit.view"),
+  authorize("activity.view"),
   getCompanyActivities
 );
 

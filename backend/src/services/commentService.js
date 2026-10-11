@@ -5,25 +5,30 @@ const {
 } = require("../repositories/commentRepository");
 
 const pool = require("../db/database");
+const { canAccessDiscussion } = require("./discussionService");
 
 async function getDiscussionForCompany(
   discussionId,
-  companyId
+  user
 ) {
   const result = await pool.query(
     `
     SELECT
       id,
-      company_id
+      company_id,
+      resource_type,
+      resource_id
     FROM discussions
     WHERE id = $1
       AND company_id = $2
     LIMIT 1
     `,
-    [discussionId, companyId]
+    [discussionId, user.company_id]
   );
 
-  return result.rows[0];
+  const discussion = result.rows[0];
+  if (!discussion || !(await canAccessDiscussion(discussion, user))) return null;
+  return discussion;
 }
 
 async function createNewComment({
@@ -31,10 +36,7 @@ async function createNewComment({
   content
 }, user) {
   const discussion =
-    await getDiscussionForCompany(
-      discussionId,
-      user.company_id
-    );
+    await getDiscussionForCompany(discussionId, user);
 
   if (!discussion) {
     throw new Error("DISCUSSION_NOT_FOUND");
@@ -56,10 +58,7 @@ async function getComments(
   user
 ) {
   const discussion =
-    await getDiscussionForCompany(
-      discussionId,
-      user.company_id
-    );
+    await getDiscussionForCompany(discussionId, user);
 
   if (!discussion) {
     throw new Error("DISCUSSION_NOT_FOUND");
@@ -82,10 +81,7 @@ async function getComment(
   }
 
   const discussion =
-    await getDiscussionForCompany(
-      comment.discussion_id,
-      user.company_id
-    );
+    await getDiscussionForCompany(comment.discussion_id, user);
 
   if (!discussion) {
     throw new Error("COMMENT_NOT_FOUND");
