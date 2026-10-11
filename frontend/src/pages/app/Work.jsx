@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { del, get, post, put } from "../../services/api";
+import { del, get, post } from "../../services/api";
+import TaskWorkflowPanel from "../../components/TaskWorkflowPanel";
 import {
   PRIORITIES,
   apiErrorMessage,
@@ -10,16 +11,6 @@ import {
 } from "../../utils/validation";
 import "../../components/WorkspaceData.css";
 import "./Work.css";
-
-const transitions = {
-  ASSIGNED: ["IN_PROGRESS"],
-  IN_PROGRESS: ["SUBMITTED"],
-  SUBMITTED: ["TEAM_LEAD_REVIEW"],
-  TEAM_LEAD_REVIEW: ["APPROVED", "NEEDS_CHANGES"],
-  NEEDS_CHANGES: ["IN_PROGRESS"],
-  APPROVED: ["COMPLETED"],
-  COMPLETED: [],
-};
 
 const blank = {
   projectId: "",
@@ -42,6 +33,7 @@ function Work() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState(null);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -127,27 +119,6 @@ function Work() {
       setMessage(apiErrorMessage(error));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function changeStatus(task, newStatus) {
-    if (!newStatus) return;
-    setBusyTaskId(task.id);
-    setMessage("");
-    try {
-      const response = await put("/tasks/" + task.id + "/status", { newStatus });
-      const updated = response?.data?.task;
-      if (updated) {
-        setTasks((current) => current.map((item) => item.id === task.id ? updated : item));
-      } else {
-        setLoading(true);
-        setReloadIndex((current) => current + 1);
-      }
-      setMessage("Task status updated.");
-    } catch (error) {
-      setMessage(apiErrorMessage(error));
-    } finally {
-      setBusyTaskId(null);
     }
   }
 
@@ -309,25 +280,25 @@ function Work() {
                     {task.description && <p>{task.description}</p>}
                   </div>
                   <div className="workspace-actions">
-                    {transitions[task.status]?.length > 0 && (
-                      <select aria-label={"Change status for " + task.title} defaultValue=""
-                        disabled={busyTaskId === task.id}
-                        onChange={(event) => {
-                          changeStatus(task, event.target.value);
-                          event.target.value = "";
-                        }}
-                      >
-                        <option value="">Change status...</option>
-                        {transitions[task.status].map((status) => (
-                          <option key={status} value={status}>{status.replaceAll("_", " ")}</option>
-                        ))}
-                      </select>
-                    )}
+                    <button type="button" className="workspace-action workspace-action--secondary"
+                      aria-expanded={expandedTaskId === task.id}
+                      onClick={() => setExpandedTaskId((current) => current === task.id ? null : task.id)}>
+                      {expandedTaskId === task.id ? "Close workflow" : "Assignment & review"}
+                    </button>
                     <button className="workspace-action workspace-action--secondary" type="button"
                       disabled={busyTaskId === task.id}
                       onClick={() => deleteTask(task)}>Delete</button>
                   </div>
                 </div>
+                {expandedTaskId === task.id && (
+                  <TaskWorkflowPanel
+                    task={task}
+                    onTaskChanged={() => {
+                      setLoading(true);
+                      setReloadIndex((count) => count + 1);
+                    }}
+                  />
+                )}
               </article>
             ))}
           </div>
