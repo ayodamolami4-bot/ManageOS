@@ -150,9 +150,11 @@ function ProjectDetails() {
                 <p className="project-details-section-kicker">MILESTONES</p>
                 <h2>Important stages of the <span>project.</span></h2>
               </div>
-              <button className="workspace-action" type="button" onClick={() => setNewMilestoneOpen((open) => !open)}>
-                {newMilestoneOpen ? "Cancel" : "Add milestone"}
-              </button>
+              {project.can_manage && (
+                <button className="workspace-action" type="button" onClick={() => setNewMilestoneOpen((open) => !open)}>
+                  {newMilestoneOpen ? "Cancel" : "Add milestone"}
+                </button>
+              )}
             </div>
 
             {notice && <p className="workspace-feedback" role="status">{notice}</p>}
