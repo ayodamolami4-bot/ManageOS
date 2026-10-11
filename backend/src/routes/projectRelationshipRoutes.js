@@ -6,7 +6,9 @@ const {
   addOrganizationUnit,
   getMembers,
   getLeads,
-  getUnits
+  getUnits,
+  deleteMember,
+  deleteLead
 } = require("../controllers/projectRelationshipController");
 
 const {
@@ -23,6 +25,7 @@ const { z } = require("zod");
 const projectRef = z.object({ projectId: z.string().uuid() }).strict();
 const memberRef = z.object({ userId: z.string().uuid() }).strict();
 const unitRef = z.object({ organizationUnitId: z.string().uuid() }).strict();
+const userRef = z.object({ projectId: z.string().uuid(), userId: z.string().uuid() }).strict();
 
 const router = express.Router();
 
@@ -57,5 +60,10 @@ router.post(
   requireProjectManagement,
   addOrganizationUnit
 );
+
+router.delete("/:projectId/members/:userId",
+  authenticate, validateParams(userRef), requireProjectManagement, deleteMember);
+router.delete("/:projectId/leads/:userId",
+  authenticate, validateParams(userRef), requireProjectManagement, deleteLead);
 
 module.exports = router;
