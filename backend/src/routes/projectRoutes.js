@@ -29,8 +29,11 @@ const {
   requireProjectCreation
 } = require("../middleware/projectCreationAuthorization");
 
-const router =
-  express.Router();
+const { z } = require("zod");
+const { validateParams } = require("../middleware/validate");
+const { listProjectGoals } = require("../controllers/goalProjectController");
+
+const router = express.Router();
 
 /*
  * Create project.
@@ -80,5 +83,11 @@ router.put(
   requireProjectManagement,
   updateProject
 );
+
+router.get("/:projectId/goals",
+  authenticate,
+  validateParams(z.object({ projectId: z.string().uuid() }).strict()),
+  requireProjectView,
+  listProjectGoals);
 
 module.exports = router;
