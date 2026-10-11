@@ -29,8 +29,11 @@ const {
   getCsrfToken
 } = require("../middleware/csrfProtection");
 
-const router =
-  express.Router();
+const { forgotPassword, confirmPasswordReset } = require("../controllers/passwordRecoveryController");
+const { forgotPasswordSchema, resetPasswordSchema } = require("../validators/passwordRecoverySchemas");
+const { passwordRecoveryRateLimiter } = require("../middleware/rateLimiters");
+
+const router = express.Router();
 
 /*
  * Get a CSRF token for state-changing
@@ -69,5 +72,10 @@ router.get(
   authenticate,
   me
 );
+
+router.post("/forgot-password",
+  passwordRecoveryRateLimiter, validateBody(forgotPasswordSchema), forgotPassword);
+router.post("/reset-password",
+  passwordRecoveryRateLimiter, validateBody(resetPasswordSchema), confirmPasswordReset);
 
 module.exports = router;
