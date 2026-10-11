@@ -1,6 +1,112 @@
+import { useEffect, useState } from "react";
+
+import { get, post } from "../../services/api";
+import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
+import "../../components/WorkspaceData.css";
 import "./People.css";
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function People() {
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [version, setVersion] = useState(0);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [draft, setDraft] = useState({ email: "", roleId: "", organizationUnitId: "" });
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [invitationUrl, setInvitationUrl] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.allSettled([
+      get("/users"),
+      get("/users/roles"),
+      get("/organization-units"),
+    ]).then(([peopleResult, roleResult, unitResult]) => {
+      if (!active) return;
+      if (peopleResult.status === "fulfilled") {
+        setUsers(Array.isArray(peopleResult.value?.data) ? peopleResult.value.data : []);
+        setLoadError("");
+      } else {
+        setLoadError(apiErrorMessage(peopleResult.reason));
+      }
+      if (roleResult.status === "fulfilled") {
+        setRoles(Array.isArray(roleResult.value?.data) ? roleResult.value.data : []);
+      }
+      if (unitResult.status === "fulfilled") {
+        setUnits(Array.isArray(unitResult.value?.data) ? unitResult.value.data : []);
+      }
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [version]);
+
+  function refresh() {
+    setLoading(true);
+    setVersion((current) => current + 1);
+  }
+
+  function update(field, value) {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: "" }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    const nextErrors = {};
+
+    if (!emailPattern.test(draft.email.trim()) || draft.email.trim().length > 254) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+    if (!roles.some((role) => role.id === draft.roleId)) {
+      nextErrors.roleId = "Choose a valid role.";
+    }
+    if (
+      draft.organizationUnitId &&
+      !units.some((unit) => unit.id === draft.organizationUnitId)
+    ) {
+      nextErrors.organizationUnitId = "Choose an existing unit.";
+    }
+
+    setErrors(nextErrors);
+    setFeedback("");
+    setInvitationUrl("");
+    if (Object.keys(nextErrors).length) return;
+
+    setSaving(true);
+    try {
+      const response = await post("/invitations", {
+        email: draft.email.trim().toLowerCase(),
+        roleId: draft.roleId,
+        organizationUnitId: draft.organizationUnitId || null,
+      });
+
+      setFeedback(response?.data?.token
+        ? "Invitation created. Share the following development-only link securely:"
+        : "Invitation record created. Email delivery is not configured, so no invitation email has been sent.");
+      if (response?.data?.token) {
+        setInvitationUrl(window.location.origin + "/invite?token=" + encodeURIComponent(response.data.token));
+      }
+      setInviteOpen(false);
+      setDraft({ email: "", roleId: "", organizationUnitId: "" });
+    } catch (error) {
+      setFeedback(apiErrorMessage(error));
+      setErrors(apiFieldErrors(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <main className="people-page">
       <section className="people-header">
@@ -8,11 +114,10 @@ function People() {
           <p className="people-eyebrow">COMPANY PEOPLE</p>
           <h1>Manage the people who make the company work.</h1>
           <p className="people-intro">
-            People brings company members, responsibilities, roles, and
-            organizational access into one place.
+            View company members, their roles and organizational responsibilities,
+            and invite new colleagues to join the workspace.
           </p>
         </div>
-
         <div className="people-context">
           <span className="people-context-label">WORKSPACE</span>
           <strong>Company members</strong>
@@ -22,20 +127,18 @@ function People() {
       <section className="people-summary">
         <div className="people-summary-item">
           <span>MEMBERS</span>
-          <strong>—</strong>
-          <p>People currently belonging to the company.</p>
+          <strong>{loading || loadError ? "—" : users.length}</strong>
+          <p>Registered people in the company.</p>
         </div>
-
         <div className="people-summary-item">
-          <span>INVITATIONS</span>
-          <strong>—</strong>
-          <p>Pending invitations waiting for acceptance.</p>
+          <span>ASSIGNED ROLES</span>
+          <strong>{loading || loadError ? "—" : users.reduce((total, user) => total + (user.roles?.length || 0), 0)}</strong>
+          <p>Responsibilities assigned to company members.</p>
         </div>
-
         <div className="people-summary-item">
-          <span>ORGANIZATION</span>
-          <strong>—</strong>
-          <p>Members connected to the company's structure.</p>
+          <span>UNIT MEMBERSHIPS</span>
+          <strong>{loading || loadError ? "—" : users.reduce((total, user) => total + (user.memberships?.length || 0), 0)}</strong>
+          <p>Links between people and organization units.</p>
         </div>
       </section>
 
@@ -45,67 +148,82 @@ function People() {
             <p className="people-section-kicker">COMPANY MEMBERS</p>
             <h2>People</h2>
           </div>
-
-          <button type="button" className="people-invite-button">
-            Invite person
-          </button>
-        </div>
-
-        <div className="people-table">
-          <div className="people-table-header">
-            <span>PERSON</span>
-            <span>ROLE</span>
-            <span>ORGANIZATION</span>
-            <span>STATUS</span>
-          </div>
-
-          <div className="people-empty">
-            <h3>No company members to display yet.</h3>
-
-            <p>
-              People who join the company will appear here with their role,
-              organizational membership, and account status.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="people-principles">
-        <div className="people-principle">
-          <span className="people-principle-number">01</span>
-
-          <div>
-            <h3>Role is responsibility</h3>
-            <p>
-              A person's role should determine what they are responsible for
-              and what company actions they are authorized to perform.
-            </p>
+          <div className="workspace-actions">
+            <button className="workspace-action workspace-action--secondary" type="button" onClick={refresh}>Refresh</button>
+            <button className="people-invite-button" type="button" onClick={() => setInviteOpen((open) => !open)}>
+              {inviteOpen ? "Cancel invitation" : "Invite person"}
+            </button>
           </div>
         </div>
 
-        <div className="people-principle">
-          <span className="people-principle-number">02</span>
+        {feedback && <p className="workspace-feedback" role="status">{feedback}</p>}
+        {invitationUrl && (
+          <p className="workspace-feedback workspace-feedback--success">
+            <a href={invitationUrl}>{invitationUrl}</a>
+          </p>
+        )}
 
-          <div>
-            <h3>Organization gives context</h3>
-            <p>
-              People can belong to flexible organization units without forcing
-              every company into the same departmental structure.
-            </p>
+        {inviteOpen && (
+          <form className="workspace-data-form" onSubmit={submit} noValidate>
+            <div className="workspace-field workspace-field--wide">
+              <label htmlFor="invite-person-email">Invitee email</label>
+              <input id="invite-person-email" type="email" maxLength={254} required
+                value={draft.email} disabled={saving}
+                aria-invalid={Boolean(errors.email)}
+                onChange={(event) => update("email", event.target.value)}
+                placeholder="colleague@company.com"
+              />
+              {errors.email && <span className="workspace-field-error" role="alert">{errors.email}</span>}
+            </div>
+            <div className="workspace-field">
+              <label htmlFor="invite-person-role">Role</label>
+              <select id="invite-person-role" value={draft.roleId} disabled={saving || !roles.length}
+                aria-invalid={Boolean(errors.roleId)}
+                onChange={(event) => update("roleId", event.target.value)}
+              >
+                <option value="">Choose a role</option>
+                {roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+              </select>
+              {errors.roleId && <span className="workspace-field-error" role="alert">{errors.roleId}</span>}
+            </div>
+            <div className="workspace-field">
+              <label htmlFor="invite-person-unit">Organization unit (optional)</label>
+              <select id="invite-person-unit" value={draft.organizationUnitId} disabled={saving}
+                aria-invalid={Boolean(errors.organizationUnitId)}
+                onChange={(event) => update("organizationUnitId", event.target.value)}
+              >
+                <option value="">Company-wide / none</option>
+                {units.map((unit) => <option value={unit.id} key={unit.id}>{unit.name}</option>)}
+              </select>
+              {errors.organizationUnitId && (
+                <span role="alert" className="workspace-field-error">{errors.organizationUnitId}</span>
+              )}
+            </div>
+            <div className="workspace-actions">
+              <button className="workspace-action" type="submit" disabled={saving || !roles.length}>
+                {saving ? "Creating..." : "Create invitation"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {loading && <p className="workspace-feedback" role="status">Loading people...</p>}
+        {!loading && loadError && <p className="workspace-feedback" role="alert">{loadError}</p>}
+        {!loading && !loadError && users.length === 0 && <p className="workspace-feedback">No members found.</p>}
+        {!loading && !loadError && (
+          <div className="workspace-data-list">
+            {users.map((user) => (
+              <article key={user.id} className="workspace-data-item">
+                <h3>{[user.first_name, user.last_name].filter(Boolean).join(" ")}</h3>
+                <p className="workspace-data-meta">{user.email}</p>
+                <div className="workspace-data-meta">
+                  <span>Roles: {user.roles?.map((role) => role.name).join(", ") || "No role assigned"}</span>
+                  <span>Units: {user.memberships?.map((membership) => membership.organization_unit_name).join(", ") || "No unit assigned"}</span>
+                </div>
+              </article>
+            ))}
           </div>
-        </div>
-
-        <div className="people-principle">
-          <span className="people-principle-number">03</span>
-
-          <div>
-            <h3>Access follows membership</h3>
-            <p>
-              Membership, role, and resource permissions work together to
-              determine what each person can see and change.
-            </p>
-          </div>
-        </div>
+        )}
       </section>
     </main>
   );
