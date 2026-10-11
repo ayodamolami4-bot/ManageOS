@@ -1,0 +1,348 @@
+.project-details-page {
+  min-width: 0;
+}
+
+/* Header */
+.project-details-header {
+  padding: 4px 0 58px;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.14);
+}
+
+.project-details-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 32px;
+  color: #89938d;
+  font-size: 0.7rem;
+}
+
+.project-details-breadcrumb a {
+  color: #47705d;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.project-details-breadcrumb a:hover {
+  color: #17362b;
+}
+
+.project-details-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+}
+
+.project-details-heading > div {
+  max-width: 880px;
+}
+
+.project-details-kicker,
+.project-details-section-kicker {
+  margin: 0 0 14px;
+  color: #47705d;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+}
+
+.project-details-heading h1 {
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(3rem, 5vw, 5.2rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.92;
+}
+
+.project-details-heading h1 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.project-details-intro {
+  max-width: 730px;
+  margin: 25px 0 0;
+  color: #617069;
+  font-size: 0.97rem;
+  line-height: 1.8;
+}
+
+.project-details-reference {
+  flex-shrink: 0;
+  padding-top: 5px;
+  color: #b8744a;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+/* Shared section */
+.project-details-context,
+.project-details-milestones,
+.project-details-work,
+.project-details-record {
+  padding: 72px 0;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.12);
+}
+
+.project-details-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+  margin-bottom: 32px;
+}
+
+.project-details-section-heading h2 {
+  max-width: 790px;
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(2rem, 3.5vw, 3.3rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+
+.project-details-section-heading h2 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+.project-details-section-heading > span {
+  flex-shrink: 0;
+  color: #b8744a;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+/* Context */
+.project-details-context-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.project-details-context-item {
+  min-height: 225px;
+  padding: 28px;
+  border-top: 3px solid #386b52;
+  background: #e8efe9;
+}
+
+.project-details-context-item:nth-child(2) {
+  border-top-color: #b8744a;
+  background: #f1ded1;
+}
+
+.project-details-context-item:nth-child(3) {
+  border-top-color: #c7d979;
+  background: #e7efba;
+}
+
+.project-details-context-item > span {
+  display: block;
+  margin-bottom: 55px;
+  color: #47705d;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.project-details-context-item:nth-child(2) > span {
+  color: #805033;
+}
+
+.project-details-context-item:nth-child(3) > span {
+  color: #52621d;
+}
+
+.project-details-context-item strong {
+  display: block;
+  color: #17362b;
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.project-details-context-item p {
+  max-width: 390px;
+  margin: 8px 0 0;
+  color: #617069;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+/* Milestones */
+.project-details-empty-panel {
+  min-height: 180px;
+  padding: 30px;
+  border-top: 2px solid #17362b;
+  background: #f0ece1;
+}
+
+.project-details-empty-panel strong {
+  color: #17362b;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.project-details-empty-panel p {
+  max-width: 720px;
+  margin: 9px 0 0;
+  color: #65736b;
+  font-size: 0.88rem;
+  line-height: 1.75;
+}
+
+/* Work */
+.project-details-work-panel {
+  border-top: 2px solid #17362b;
+}
+
+.project-details-work-state {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 24px;
+  padding: 24px 0;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.13);
+}
+
+.project-details-work-state > span {
+  color: #b8744a;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.project-details-work-state strong {
+  color: #17362b;
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.project-details-work-state p {
+  grid-column: 2;
+  max-width: 680px;
+  margin: -3px 0 0;
+  color: #65736b;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+/* Record */
+.project-details-record {
+  border-bottom: 0;
+}
+
+.project-details-record-list {
+  border-top: 2px solid #17362b;
+}
+
+.project-details-record-list > div {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 24px;
+  padding: 23px 0;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.13);
+}
+
+.project-details-record-list span {
+  color: #b8744a;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.project-details-record-list strong {
+  color: #17362b;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.project-details-record-list p {
+  grid-column: 2;
+  margin: -3px 0 0;
+  color: #65736b;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+/* Responsive */
+@media (max-width: 850px) {
+  .project-details-heading {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .project-details-context-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-details-context-item {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .project-details-header {
+    padding-bottom: 46px;
+  }
+
+  .project-details-heading h1 {
+    font-size: clamp(2.8rem, 13vw, 4.5rem);
+  }
+
+  .project-details-intro {
+    font-size: 0.92rem;
+  }
+
+  .project-details-context,
+  .project-details-milestones,
+  .project-details-work,
+  .project-details-record {
+    padding: 58px 0;
+  }
+
+  .project-details-section-heading h2 {
+    font-size: clamp(1.9rem, 9vw, 3rem);
+  }
+
+  .project-details-context-item {
+    padding: 25px;
+  }
+
+  .project-details-context-item > span {
+    margin-bottom: 38px;
+  }
+
+  .project-details-empty-panel {
+    padding: 25px;
+  }
+
+  .project-details-work-state,
+  .project-details-record-list > div {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .project-details-work-state p,
+  .project-details-record-list p {
+    grid-column: auto;
+    margin-top: 0;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .project-details-breadcrumb a {
+    transition: none;
+  }
+}

@@ -1,0 +1,15 @@
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/uploads/
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.dump
+**/*.backup
+backend/storage/files/

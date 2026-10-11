@@ -1,0 +1,359 @@
+.notifications-page {
+  min-width: 0;
+}
+
+/* Header */
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 40px;
+  padding: 10px 0 54px;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.14);
+}
+
+.notifications-header > div {
+  max-width: 860px;
+}
+
+.notifications-kicker,
+.notifications-section-kicker {
+  margin: 0 0 14px;
+  color: #47705d;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+}
+
+.notifications-header h1 {
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(3rem, 5vw, 5.2rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.92;
+}
+
+.notifications-header h1 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.notifications-intro {
+  max-width: 760px;
+  margin: 25px 0 0;
+  color: #617069;
+  font-size: 0.97rem;
+  line-height: 1.8;
+}
+
+.notifications-mark-button {
+  flex-shrink: 0;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid rgba(23, 54, 43, 0.4);
+  background: transparent;
+  color: #17362b;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.notifications-mark-button:hover {
+  transform: translateY(-2px);
+  background: #fffdf7;
+}
+
+.notifications-mark-button:focus-visible {
+  outline: 2px solid #3f7890;
+  outline-offset: 4px;
+}
+
+/* Sections */
+.notifications-overview,
+.notifications-inbox {
+  padding: 72px 0;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.12);
+}
+
+.notifications-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+  margin-bottom: 32px;
+}
+
+.notifications-section-heading h2 {
+  max-width: 800px;
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(2rem, 3.5vw, 3.3rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+
+.notifications-section-heading h2 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+.notifications-section-heading > span {
+  flex-shrink: 0;
+  color: #b8744a;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+/* Inbox state */
+.notifications-state-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.notifications-state {
+  min-height: 195px;
+  padding: 27px;
+  border-top: 3px solid transparent;
+}
+
+.notifications-state-green {
+  border-top-color: #386b52;
+  background: #e8efe9;
+}
+
+.notifications-state-copper {
+  border-top-color: #b8744a;
+  background: #f1ded1;
+}
+
+.notifications-state-lime {
+  border-top-color: #c7d979;
+  background: #e7efba;
+}
+
+.notifications-state-sky {
+  border-top-color: #3f7890;
+  background: #dfeef1;
+}
+
+.notifications-state > span {
+  display: block;
+  margin-bottom: 46px;
+  color: #47705d;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.notifications-state-copper > span {
+  color: #805033;
+}
+
+.notifications-state-lime > span {
+  color: #52621d;
+}
+
+.notifications-state-sky > span {
+  color: #3d6f82;
+}
+
+.notifications-state strong {
+  display: block;
+  color: #17362b;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.notifications-state p {
+  max-width: 340px;
+  margin: 8px 0 0;
+  color: #617069;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+/* Notification inbox */
+.notifications-empty-state {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 26px;
+  align-items: center;
+  min-height: 190px;
+  padding: 32px;
+  border-top: 2px solid #17362b;
+  background: #f0ece1;
+}
+
+.notifications-empty-mark {
+  display: grid;
+  grid-template-columns: repeat(3, 14px);
+  grid-template-rows: repeat(3, 14px);
+  gap: 3px;
+  width: 48px;
+  height: 48px;
+}
+
+.notifications-empty-mark span:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  background: #386b52;
+}
+
+.notifications-empty-mark span:nth-child(2) {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  background: #b8744a;
+}
+
+.notifications-empty-mark span:nth-child(3) {
+  grid-column: 2 / 4;
+  grid-row: 3;
+  background: #d9e97c;
+}
+
+.notifications-empty-state strong {
+  color: #17362b;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.notifications-empty-state p {
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: #65736b;
+  font-size: 0.88rem;
+  line-height: 1.75;
+}
+
+/* Principle */
+.notifications-principle {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 42px;
+  padding: 82px 0 30px;
+}
+
+.notifications-principle-label {
+  padding-top: 8px;
+}
+
+.notifications-principle-label span {
+  color: #b8744a;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.notifications-principle h2 {
+  max-width: 780px;
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(2.2rem, 4vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.notifications-principle h2 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+.notifications-principle p {
+  max-width: 720px;
+  margin: 22px 0 0;
+  color: #617069;
+  font-size: 0.94rem;
+  line-height: 1.82;
+}
+
+/* Responsive */
+@media (max-width: 1050px) {
+  .notifications-state-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .notifications-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .notifications-principle {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 680px) {
+  .notifications-header h1 {
+    font-size: clamp(2.8rem, 13vw, 4.5rem);
+  }
+
+  .notifications-intro {
+    font-size: 0.92rem;
+  }
+
+  .notifications-mark-button {
+    width: 100%;
+  }
+
+  .notifications-overview,
+  .notifications-inbox {
+    padding: 58px 0;
+  }
+
+  .notifications-section-heading h2 {
+    font-size: clamp(1.9rem, 9vw, 3rem);
+  }
+
+  .notifications-state-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .notifications-state {
+    min-height: auto;
+  }
+
+  .notifications-state > span {
+    margin-bottom: 38px;
+  }
+
+  .notifications-empty-state {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 25px;
+  }
+
+  .notifications-principle {
+    padding: 62px 0 20px;
+  }
+
+  .notifications-principle h2 {
+    font-size: clamp(2rem, 9vw, 3.2rem);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .notifications-mark-button {
+    transition: none;
+  }
+}

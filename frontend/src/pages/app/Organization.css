@@ -1,0 +1,351 @@
+.organization-page {
+  min-width: 0;
+}
+
+/* Header */
+.organization-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 40px;
+  padding: 10px 0 54px;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.14);
+}
+
+.organization-header > div {
+  max-width: 850px;
+}
+
+.organization-kicker,
+.organization-section-kicker {
+  margin: 0 0 14px;
+  color: #47705d;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+}
+
+.organization-header h1 {
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(3rem, 5vw, 5.2rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.92;
+}
+
+.organization-header h1 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.organization-intro {
+  max-width: 720px;
+  margin: 25px 0 0;
+  color: #617069;
+  font-size: 0.97rem;
+  line-height: 1.8;
+}
+
+.organization-create-button {
+  flex-shrink: 0;
+  min-height: 50px;
+  padding: 0 20px;
+  border: 1px solid #17362b;
+  background: #17362b;
+  color: #fffdf7;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.organization-create-button:hover {
+  transform: translateY(-2px);
+  background: #244b3c;
+}
+
+.organization-create-button:focus-visible {
+  outline: 2px solid #3f7890;
+  outline-offset: 4px;
+}
+
+/* Structure model */
+.organization-model {
+  padding: 72px 0;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.12);
+}
+
+.organization-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+  margin-bottom: 32px;
+}
+
+.organization-section-heading h2 {
+  max-width: 780px;
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(2rem, 3.5vw, 3.3rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+
+.organization-section-heading h2 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+.organization-section-heading > span {
+  flex-shrink: 0;
+  color: #b8744a;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.organization-model-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.organization-model-item {
+  min-height: 235px;
+  padding: 28px;
+  border-top: 3px solid transparent;
+}
+
+.organization-model-green {
+  border-top-color: #386b52;
+  background: #e8efe9;
+}
+
+.organization-model-copper {
+  border-top-color: #b8744a;
+  background: #f1ded1;
+}
+
+.organization-model-lime {
+  border-top-color: #c7d979;
+  background: #e7efba;
+}
+
+.organization-model-item > span {
+  display: block;
+  margin-bottom: 58px;
+  color: #47705d;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.organization-model-copper > span {
+  color: #805033;
+}
+
+.organization-model-lime > span {
+  color: #52621d;
+}
+
+.organization-model-item strong {
+  display: block;
+  color: #17362b;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.organization-model-item p {
+  max-width: 390px;
+  margin: 9px 0 0;
+  color: #617069;
+  font-size: 0.87rem;
+  line-height: 1.72;
+}
+
+/* Register */
+.organization-register {
+  padding: 76px 0;
+  border-bottom: 1px solid rgba(23, 54, 43, 0.12);
+}
+
+.organization-empty-state {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 26px;
+  align-items: center;
+  min-height: 185px;
+  padding: 32px;
+  border-top: 2px solid #17362b;
+  background: #f0ece1;
+}
+
+.organization-empty-mark {
+  display: grid;
+  grid-template-columns: repeat(3, 14px);
+  grid-template-rows: repeat(3, 14px);
+  gap: 3px;
+  width: 48px;
+  height: 48px;
+}
+
+.organization-empty-mark span:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  background: #386b52;
+}
+
+.organization-empty-mark span:nth-child(2) {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  background: #b8744a;
+}
+
+.organization-empty-mark span:nth-child(3) {
+  grid-column: 2 / 4;
+  grid-row: 3;
+  background: #d9e97c;
+}
+
+.organization-empty-state strong {
+  color: #17362b;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.organization-empty-state p {
+  max-width: 680px;
+  margin: 8px 0 0;
+  color: #65736b;
+  font-size: 0.88rem;
+  line-height: 1.75;
+}
+
+/* Principle */
+.organization-principle {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 42px;
+  padding: 82px 0 30px;
+}
+
+.organization-principle-label {
+  padding-top: 8px;
+}
+
+.organization-principle-label span {
+  color: #b8744a;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.organization-principle h2 {
+  max-width: 760px;
+  margin: 0;
+  color: #17362b;
+  font-size: clamp(2.2rem, 4vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.organization-principle h2 span {
+  display: block;
+  color: #386b52;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+.organization-principle p {
+  max-width: 720px;
+  margin: 22px 0 0;
+  color: #617069;
+  font-size: 0.94rem;
+  line-height: 1.82;
+}
+
+/* Responsive */
+@media (max-width: 850px) {
+  .organization-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .organization-model-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .organization-model-item {
+    min-height: auto;
+  }
+
+  .organization-principle {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 680px) {
+  .organization-header h1 {
+    font-size: clamp(2.8rem, 13vw, 4.5rem);
+  }
+
+  .organization-intro {
+    font-size: 0.92rem;
+  }
+
+  .organization-create-button {
+    width: 100%;
+  }
+
+  .organization-model,
+  .organization-register {
+    padding: 58px 0;
+  }
+
+  .organization-section-heading h2 {
+    font-size: clamp(1.9rem, 9vw, 3rem);
+  }
+
+  .organization-model-item {
+    padding: 25px;
+  }
+
+  .organization-model-item > span {
+    margin-bottom: 40px;
+  }
+
+  .organization-empty-state {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 25px;
+  }
+
+  .organization-principle {
+    padding: 62px 0 20px;
+  }
+
+  .organization-principle h2 {
+    font-size: clamp(2rem, 9vw, 3.2rem);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .organization-create-button {
+    transition: none;
+  }
+}
