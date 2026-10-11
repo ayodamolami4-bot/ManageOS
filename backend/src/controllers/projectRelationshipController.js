@@ -1,7 +1,8 @@
 const {
   assignProjectLead,
   addProjectMemberToProject,
-  linkProjectOrganizationUnit
+  linkProjectOrganizationUnit,
+  getProjectMembers
 } = require("../services/projectRelationshipService");
 
 async function assignLead(req, res) {
@@ -133,8 +134,19 @@ async function addOrganizationUnit(req, res) {
   }
 }
 
+async function getMembers(req, res) {
+  try {
+    const users = await getProjectMembers(req.params.projectId, req.user);
+    res.json({ data: users });
+  } catch (error) {
+    console.error("Project member retrieval failed:", error);
+    res.status(500).json({ error: { code: "PROJECT_MEMBERS_FAILED", message: "Unable to load project members" } });
+  }
+}
+
 module.exports = {
   assignLead,
   addMember,
-  addOrganizationUnit
+  addOrganizationUnit,
+  getMembers
 };
