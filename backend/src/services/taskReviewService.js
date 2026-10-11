@@ -73,7 +73,7 @@ async function createReview(
 
   if (
     submission.status !==
-    "TEAM_LEAD_REVIEW"
+    "SUBMITTED"
   ) {
     throw new Error(
       "SUBMISSION_NOT_READY_FOR_REVIEW"
