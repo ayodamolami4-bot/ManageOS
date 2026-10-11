@@ -17,11 +17,20 @@ const {
   requireProjectManagement
 } = require("../middleware/projectAuthorization");
 
+const { validateBody, validateParams } = require("../middleware/validate");
+const {
+  createMilestoneSchema,
+  updateMilestoneSchema,
+  projectMilestoneParamsSchema
+} = require("../validators/milestoneSchemas");
+
 const router = express.Router();
 
 router.post(
   "/projects/:projectId/milestones",
   authenticate,
+  validateParams(projectMilestoneParamsSchema),
+  validateBody(createMilestoneSchema),
   requireProjectManagement,
   createMilestone
 );
@@ -29,6 +38,7 @@ router.post(
 router.get(
   "/projects/:projectId/milestones",
   authenticate,
+  validateParams(projectMilestoneParamsSchema),
   requireProjectView,
   getMilestones
 );
@@ -36,6 +46,7 @@ router.get(
 router.get(
   "/projects/:projectId/milestones/:milestoneId",
   authenticate,
+  validateParams(projectMilestoneParamsSchema),
   requireProjectView,
   getMilestoneById
 );
@@ -43,6 +54,8 @@ router.get(
 router.put(
   "/projects/:projectId/milestones/:milestoneId",
   authenticate,
+  validateParams(projectMilestoneParamsSchema),
+  validateBody(updateMilestoneSchema),
   requireProjectManagement,
   updateMilestone
 );
@@ -50,6 +63,7 @@ router.put(
 router.delete(
   "/projects/:projectId/milestones/:milestoneId",
   authenticate,
+  validateParams(projectMilestoneParamsSchema),
   requireProjectManagement,
   deleteMilestone
 );
