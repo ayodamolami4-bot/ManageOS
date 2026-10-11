@@ -139,9 +139,7 @@ function Work() {
     }
   }
 
-  useEffect(() => {
-    if (linkedTaskId) setExpandedTaskId(linkedTaskId);
-  }, [linkedTaskId]);
+  const visibleTaskId = expandedTaskId === null ? linkedTaskId : expandedTaskId;
 
   const projectNames = new Map(projects.map((project) => [project.id, project.name]));
 
@@ -295,16 +293,16 @@ function Work() {
                   </div>
                   <div className="workspace-actions">
                     <button type="button" className="workspace-action workspace-action--secondary"
-                      aria-expanded={expandedTaskId === task.id}
-                      onClick={() => setExpandedTaskId((current) => current === task.id ? null : task.id)}>
-                      {expandedTaskId === task.id ? "Close workflow" : "Assignment & review"}
+                      aria-expanded={visibleTaskId === task.id}
+                      onClick={() => setExpandedTaskId((current) => (current ?? linkedTaskId) === task.id ? "" : task.id)}>
+                      {visibleTaskId === task.id ? "Close workflow" : "Assignment & review"}
                     </button>
                     <button className="workspace-action workspace-action--secondary" type="button"
                       disabled={busyTaskId === task.id}
                       onClick={() => deleteTask(task)}>Delete</button>
                   </div>
                 </div>
-                {expandedTaskId === task.id && (
+                {visibleTaskId === task.id && (
                   <TaskWorkflowPanel
                     task={task}
                     onTaskChanged={() => {
