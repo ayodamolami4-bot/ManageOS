@@ -75,6 +75,15 @@ async function createAssignment(
       });
     }
 
+    if (error.message === "TASK_NOT_ASSIGNABLE") {
+      return res.status(409).json({
+        error: {
+          code: "TASK_NOT_ASSIGNABLE",
+          message: "Task cannot be assigned during review or after completion"
+        }
+      });
+    }
+
     if (
       error.message ===
       "TASK_ALREADY_ASSIGNED"
