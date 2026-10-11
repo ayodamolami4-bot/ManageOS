@@ -1,3 +1,4 @@
+import WorkRecordManager from "../../components/WorkRecordManager";
 import "./Projects.css";
 
 function Projects() {
@@ -20,9 +21,6 @@ function Projects() {
           </p>
         </div>
 
-        <button type="button" className="projects-create-button">
-          Create project
-        </button>
       </header>
 
       <section className="projects-context">
@@ -76,33 +74,7 @@ function Projects() {
       </section>
 
       <section className="projects-register">
-        <div className="projects-section-heading">
-          <div>
-            <p className="projects-section-kicker">PROJECT REGISTER</p>
-
-            <h2>Work the company has decided to move forward.</h2>
-          </div>
-
-          <span>00</span>
-        </div>
-
-        <div className="projects-empty-state">
-          <div className="projects-empty-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-
-          <div>
-            <strong>No projects have been created.</strong>
-
-            <p>
-              Once projects exist, this area will provide the company's
-              authorized users with a clear view of project purpose, ownership,
-              progress, milestones, and current state.
-            </p>
-          </div>
-        </div>
+        <WorkRecordManager kind="project" />
       </section>
 
       <section className="projects-model">
