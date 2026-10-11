@@ -211,13 +211,15 @@ async function loginUser({
       `
       SELECT
         id,
-        company_id,
-        first_name,
-        last_name,
-        email,
+        users.company_id,
+        companies.name AS company_name,
+        users.first_name,
+        users.last_name,
+        users.email,
         password_hash
       FROM users
-      WHERE email = $1
+      JOIN companies ON companies.id = users.company_id
+      WHERE users.email = $1
       LIMIT 1
       `,
       [
@@ -283,6 +285,7 @@ async function loginUser({
       id: user.id,
       company_id:
         user.company_id,
+      company_name: user.company_name,
       first_name:
         user.first_name,
       last_name:
