@@ -1,6 +1,33 @@
+import { useState } from "react";
+import { post } from "../../services/api";
+import { apiErrorMessage } from "../../utils/validation";
 import "./ForgotPassword.css";
 
 function ForgotPassword() {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const response = await post("/auth/forgot-password", { email: email.trim().toLowerCase() });
+      setMessage(response?.message || "If an account exists, reset instructions will be sent.");
+    } catch (reason) {
+      setError(apiErrorMessage(reason));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <main className="forgot-page">
       <div className="forgot-background" aria-hidden="true">
@@ -71,7 +98,7 @@ function ForgotPassword() {
             process.
           </p>
 
-          <form className="forgot-form">
+          <form className="forgot-form" onSubmit={submit} noValidate>
             <div className="forgot-field">
               <label htmlFor="forgot-email">Email address</label>
 
@@ -81,11 +108,19 @@ function ForgotPassword() {
                 type="email"
                 autoComplete="email"
                 placeholder="you@company.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                maxLength={254}
+                required
+                disabled={saving}
+                aria-invalid={Boolean(error)}
               />
             </div>
 
-            <button type="submit" className="forgot-submit">
-              Send reset instructions
+            {error && <p className="auth-form-feedback" role="alert">{error}</p>}
+            {message && <p className="auth-form-feedback auth-form-feedback--success" role="status">{message}</p>}
+            <button type="submit" className="forgot-submit" disabled={saving}>
+              {saving ? "Sending..." : "Send reset instructions"}
               <span aria-hidden="true">→</span>
             </button>
           </form>
