@@ -70,10 +70,28 @@ async function createManager(companyId, ownerId) {
   return managerId;
 }
 
+async function createScopedTeamLead(companyId, ownerId, unitId) {
+  const result = await pool.query(
+    `INSERT INTO users (company_id, first_name, last_name, email, password_hash)
+     VALUES ($1, 'Lead', 'Tester', 'teamlead-integration@manageos.test', $2)
+     RETURNING id`,
+    [companyId, await hashPassword(secret)]
+  );
+  const leadId = result.rows[0].id;
+  await pool.query(
+    `INSERT INTO user_roles (user_id, role_id, organization_unit_id, assigned_by)
+     SELECT $1, id, $2, $3 FROM roles
+     WHERE name = 'TEAM_LEAD' AND company_id IS NULL AND is_system = TRUE`,
+    [leadId, unitId, ownerId]
+  );
+  return leadId;
+}
+
 test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async () => {
   const owner = await newClient();
   const employee = await newClient();
   const outsider = await newClient();
+  const scopedLead = await newClient();
 
   try {
     const { companyId, userId: ownerId } = await registerAndLogin(
@@ -191,6 +209,35 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       { organizationUnitId: otherCompanyUnit.body.data.id }
     );
     assert.equal(crossCompanyLink.status, 404);
+    const secondUnit = await owner.post("/api/organization-units", {
+      name: "Product", type: "Department", parentUnitId: null, description: null,
+    });
+    assert.equal(secondUnit.status, 201, JSON.stringify(secondUnit.body));
+    const scopedLeadId = await createScopedTeamLead(companyId, ownerId, secondUnit.body.data.id);
+    const scopedBeforeLink = await owner.post(
+      `/api/project-relationships/${projectId}/leads`, { userId: scopedLeadId }
+    );
+    assert.equal(scopedBeforeLink.status, 422);
+
+    const secondUnitLink = await owner.post(
+      `/api/project-relationships/${projectId}/organization-units`,
+      { organizationUnitId: secondUnit.body.data.id }
+    );
+    assert.equal(secondUnitLink.status, 201, JSON.stringify(secondUnitLink.body));
+    const scopedAfterLink = await owner.post(
+      `/api/project-relationships/${projectId}/leads`, { userId: scopedLeadId }
+    );
+    assert.equal(scopedAfterLink.status, 201, JSON.stringify(scopedAfterLink.body));
+
+    const leadLogin = await scopedLead.post("/api/auth/login", {
+      email: "teamlead-integration@manageos.test", password: secret,
+    });
+    assert.equal(leadLogin.status, 200, JSON.stringify(leadLogin.body));
+    const leadProjectAccess = await scopedLead.get(
+      `/api/project-relationships/${projectId}/members`
+    );
+    assert.equal(leadProjectAccess.status, 200, JSON.stringify(leadProjectAccess.body));
+
 
     const employeeMemberships = await employee.get("/api/organization-memberships/me");
     assert.equal(employeeMemberships.status, 200, JSON.stringify(employeeMemberships.body));
