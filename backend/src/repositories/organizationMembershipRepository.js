@@ -335,10 +335,41 @@ async function deleteOrganizationMembershipWithAudit(
   }
 }
 
+
+async function getOrganizationMembershipsForUser(userId, companyId) {
+  const result = await pool.query(
+    `SELECT om.id, om.user_id, om.organization_unit_id,
+            ou.name AS organization_unit_name, ou.type AS organization_unit_type,
+            ou.parent_unit_id, om.created_at, om.updated_at
+     FROM organization_memberships om
+     JOIN users u ON u.id = om.user_id
+     JOIN organization_units ou ON ou.id = om.organization_unit_id
+     WHERE om.user_id = $1 AND u.company_id = $2 AND ou.company_id = $2
+     ORDER BY ou.name ASC`,
+    [userId, companyId]
+  );
+  return result.rows;
+}
+
+async function getOrganizationMembershipById(membershipId, companyId) {
+  const result = await pool.query(
+    `SELECT om.id, om.user_id, om.organization_unit_id
+     FROM organization_memberships om
+     JOIN users u ON u.id = om.user_id
+     JOIN organization_units ou ON ou.id = om.organization_unit_id
+     WHERE om.id = $1 AND u.company_id = $2 AND ou.company_id = $2
+     LIMIT 1`,
+    [membershipId, companyId]
+  );
+  return result.rows[0] || null;
+}
+
 module.exports = {
   createOrganizationMembership,
   createOrganizationMembershipWithAudit,
   getUserOrganizationMemberships,
+  getOrganizationMembershipsForUser,
+  getOrganizationMembershipById,
   getUserByIdAndCompany,
   getOrganizationUnitByIdAndCompany,
   deleteOrganizationMembershipWithAudit
