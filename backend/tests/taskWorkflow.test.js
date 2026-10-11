@@ -183,3 +183,9 @@ test(
     );
   }
 );
+
+test("status endpoint cannot bypass submission and review records", () => {
+  for (const status of ["SUBMITTED", "TEAM_LEAD_REVIEW", "APPROVED", "NEEDS_CHANGES", "COMPLETED"]) {
+    assert.equal(changeTaskStatusSchema.safeParse({ newStatus: status }).success, false);
+  }
+});
