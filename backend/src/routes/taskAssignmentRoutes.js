@@ -3,7 +3,8 @@ const express = require("express");
 const {
   createAssignment,
   getAssignments,
-  endTaskAssignment
+  endTaskAssignment,
+  reassignTask
 } = require("../controllers/taskAssignmentController");
 
 const {
@@ -42,6 +43,15 @@ router.put(
   authenticate,
   validateParams(assignmentParams),
   endTaskAssignment
+);
+
+
+router.put(
+  "/task-assignments/:assignmentId/reassign",
+  authenticate,
+  validateParams(assignmentParams),
+  validateBody(assignmentBody),
+  reassignTask
 );
 
 module.exports = router;
