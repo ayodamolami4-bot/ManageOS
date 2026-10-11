@@ -210,7 +210,7 @@ async function loginUser({
     await pool.query(
       `
       SELECT
-        id,
+        users.id,
         users.company_id,
         companies.name AS company_name,
         users.first_name,
