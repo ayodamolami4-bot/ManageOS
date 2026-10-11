@@ -133,3 +133,26 @@ export function apiErrorMessage(error) {
     "Something went wrong. Please try again."
   );
 }
+
+export function validateTaskDraft(form, projects = [], milestones = []) {
+  const errors = {};
+  if (!projects.some((project) => project.id === form.projectId)) {
+    errors.projectId = "Choose an existing project.";
+  }
+  if (form.milestoneId && !milestones.some((milestone) => milestone.id === form.milestoneId)) {
+    errors.milestoneId = "Choose a milestone belonging to the selected project.";
+  }
+  const title = form.title?.trim() || "";
+  if (!title) errors.title = "Task title is required.";
+  else if (title.length > 255) errors.title = "Task title is too long.";
+  if (String(form.description || "").length > 10000) {
+    errors.description = "Description cannot exceed 10,000 characters.";
+  }
+  if (!PRIORITIES.includes(form.priority)) {
+    errors.priority = "Choose a valid priority.";
+  }
+  if (form.dueDate && !validDate(form.dueDate)) {
+    errors.dueDate = "Enter a valid calendar date.";
+  }
+  return errors;
+}
