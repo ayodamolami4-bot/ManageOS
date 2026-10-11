@@ -8,7 +8,7 @@ async function forgotPassword(req, res) {
       message: "If an account exists for this address, reset instructions will be sent.",
     });
   } catch (error) {
-    if (["EMAIL_NOT_CONFIGURED", "EMAIL_DELIVERY_FAILED"].includes(error.message)) {
+    if (error.message === "EMAIL_NOT_CONFIGURED") {
       return res.status(503).json({
         error: {
           code: "PASSWORD_RESET_UNAVAILABLE",
@@ -16,9 +16,10 @@ async function forgotPassword(req, res) {
         },
       });
     }
-    console.error("Password reset request failed:", error);
-    return res.status(500).json({
-      error: { code: "PASSWORD_RESET_REQUEST_FAILED", message: "Unable to process password reset." },
+    // Do not reveal the existence of an account through delivery failures.
+    console.error("Password reset request could not be fulfilled.");
+    return res.status(200).json({
+      message: "If an account exists for this address, reset instructions will be sent.",
     });
   }
 }
