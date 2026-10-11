@@ -4,7 +4,9 @@ const {
   linkProjectOrganizationUnit,
   getProjectMembers,
   getProjectLeadsForCompany,
-  getProjectUnitsForCompany
+  getProjectUnitsForCompany,
+  removeProjectMember,
+  removeProjectLead
 } = require("../services/projectRelationshipService");
 
 async function assignLead(req, res) {
@@ -198,11 +200,46 @@ async function getUnits(req, res) {
   }
 }
 
+
+async function deleteRelation(req, res, remove, description) {
+  try {
+    const data = await remove(req.params.projectId, req.params.userId, req.user);
+    res.json({ data, message: description + " removed" });
+  } catch (error) {
+    const code = error.message;
+    if (["PROJECT_NOT_FOUND", "PROJECT_RELATIONSHIP_NOT_FOUND"].includes(code)) {
+      return res.status(404).json({
+        error: { code, message: "Project relationship not found" },
+      });
+    }
+    const conflicts = {
+      PROJECT_MEMBER_HAS_ACTIVE_TASKS:
+        "End or reassign active tasks before removing this project member",
+      REMOVE_PROJECT_LEAD_FIRST:
+        "Remove this user's project-lead role before removing membership",
+      LAST_PROJECT_MANAGER:
+        "Assign another qualified Manager as project lead before removing this lead",
+    };
+    if (conflicts[code]) {
+      return res.status(409).json({ error: { code, message: conflicts[code] } });
+    }
+    console.error("Project relationship removal failed:", error);
+    res.status(500).json({
+      error: { code: "PROJECT_RELATIONSHIP_REMOVAL_FAILED", message: "Unable to remove project relationship" },
+    });
+  }
+}
+
+const deleteMember = (req, res) => deleteRelation(req, res, removeProjectMember, "Project member");
+const deleteLead = (req, res) => deleteRelation(req, res, removeProjectLead, "Project lead");
+
 module.exports = {
   assignLead,
   addMember,
   addOrganizationUnit,
   getMembers,
   getLeads,
-  getUnits
+  getUnits,
+  deleteMember,
+  deleteLead
 };
