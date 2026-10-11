@@ -39,3 +39,44 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm test
+
+  postgres-integration:
+    name: PostgreSQL integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: manageos_test
+          POSTGRES_USER: manageos_ci
+          POSTGRES_PASSWORD: manageos_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U manageos_ci -d manageos_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_NAME: manageos_test
+      DB_USER: manageos_ci
+      DB_PASSWORD: manageos_ci_password
+      NODE_ENV: test
+      RUN_DB_INTEGRATION: "1"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Apply all database migrations
+        run: npm run migrate
+      - name: Exercise real authenticated workflows
+        run: node --test tests/integration/postgresWorkflow.integration.test.js
