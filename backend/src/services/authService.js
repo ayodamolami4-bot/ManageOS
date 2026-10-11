@@ -216,6 +216,18 @@ async function loginUser({
         users.first_name,
         users.last_name,
         users.email,
+        (
+                    SELECT COALESCE(
+                      jsonb_agg(jsonb_build_object(
+                        'name', r.name,
+                        'organization_unit_id', ur.organization_unit_id
+                      ) ORDER BY r.name),
+                      '[]'::jsonb
+                    )
+                    FROM user_roles ur
+                    JOIN roles r ON r.id = ur.role_id
+                    WHERE ur.user_id = users.id
+                  ) AS roles,
         password_hash
       FROM users
       JOIN companies ON companies.id = users.company_id
@@ -291,7 +303,8 @@ async function loginUser({
       last_name:
         user.last_name,
       email:
-        user.email
+        user.email,
+      roles: user.roles || []
     },
 
     session
