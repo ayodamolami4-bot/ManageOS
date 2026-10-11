@@ -1,7 +1,7 @@
 const {
   addUserToOrganizationUnit,
+  getMyMemberships,
   getUserMemberships,
-  getMembershipsForUser,
   removeMembership
 } = require("../services/organizationMembershipService");
 
@@ -74,6 +74,14 @@ async function addMembership(
       });
     }
 
+    if (error.message === "FORBIDDEN" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_ADD_EMPLOYEES" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_MANAGE_EMPLOYEES") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You cannot manage this organization membership" }
+      });
+    }
+
     res.status(500).json({
       error: {
         code:
@@ -91,9 +99,7 @@ async function getMemberships(
 ) {
   try {
     const memberships =
-      await getUserMemberships(
-        req.user.id
-      );
+      await getMyMemberships(req.user);
 
     res.status(200).json({
       data: memberships,
@@ -105,6 +111,14 @@ async function getMemberships(
       "Organization membership retrieval failed:",
       error
     );
+
+    if (error.message === "FORBIDDEN" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_ADD_EMPLOYEES" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_MANAGE_EMPLOYEES") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You cannot manage this organization membership" }
+      });
+    }
 
     res.status(500).json({
       error: {
@@ -123,10 +137,7 @@ async function getMembershipsForManagedUser(
 ) {
   try {
     const memberships =
-      await getMembershipsForUser(
-        req.params.userId,
-        req.user
-      );
+      await getUserMemberships(req.params.userId, req.user);
 
     res.status(200).json({
       data: memberships,
@@ -150,6 +161,14 @@ async function getMembershipsForManagedUser(
           message:
             "User not found in your company"
         }
+      });
+    }
+
+    if (error.message === "FORBIDDEN" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_ADD_EMPLOYEES" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_MANAGE_EMPLOYEES") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You cannot manage this organization membership" }
       });
     }
 
@@ -197,6 +216,14 @@ async function removeMembershipById(
           message:
             "Organization membership not found"
         }
+      });
+    }
+
+    if (error.message === "FORBIDDEN" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_ADD_EMPLOYEES" ||
+        error.message === "TEAM_LEAD_CAN_ONLY_MANAGE_EMPLOYEES") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You cannot manage this organization membership" }
       });
     }
 
