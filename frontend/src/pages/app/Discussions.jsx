@@ -50,13 +50,8 @@ function Discussions() {
   useEffect(() => {
     let active = true;
 
-    if (!selectedId) {
-      setComments([]);
-      return () => { active = false; };
-    }
+    if (!selectedId) return () => { active = false; };
 
-    setCommentsLoading(true);
-    setCommentError("");
     get("/discussions/" + selectedId + "/comments")
       .then((response) => {
         if (active) setComments(Array.isArray(response?.data) ? response.data : []);
@@ -226,7 +221,14 @@ function Discussions() {
                     </div>
                   </div>
                   <button type="button" className="workspace-action workspace-action--secondary"
-                    onClick={() => setSelectedId((current) => current === discussion.id ? "" : discussion.id)}>
+                    onClick={() => {
+                      const next = selectedId === discussion.id ? "" : discussion.id;
+                      setSelectedId(next);
+                      setComments([]);
+                      setComment("");
+                      setCommentError("");
+                      setCommentsLoading(Boolean(next));
+                    }}>
                     {selectedId === discussion.id ? "Close replies" : "View replies"}
                   </button>
                 </div>
