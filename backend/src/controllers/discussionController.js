@@ -26,6 +26,16 @@ async function createDiscussion(req, res) {
       error
     );
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "You do not have permission to access this discussion"
+        }
+      });
+    }
+
+
     if (error.message === "INVALID_RESOURCE_TYPE") {
       return res.status(422).json({
         error: {
@@ -144,6 +154,16 @@ async function getResourceDiscussions(req, res) {
       "Resource discussion retrieval failed:",
       error
     );
+
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "You do not have permission to access this discussion"
+        }
+      });
+    }
+
 
     if (error.message === "INVALID_RESOURCE_TYPE") {
       return res.status(422).json({
