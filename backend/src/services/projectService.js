@@ -6,7 +6,8 @@ const {
 } = require("../repositories/projectRepository");
 
 const {
-  canViewProject
+  canViewProject,
+  canManageProject
 } = require("./authorizationService");
 
 async function createNewProject(
@@ -47,7 +48,7 @@ async function getCompanyProjects(user) {
       );
 
     if (allowed) {
-      visibleProjects.push(project);
+      visibleProjects.push({ ...project, can_create_tasks: await canManageProject(user, project.id) });
     }
   }
 
@@ -70,7 +71,7 @@ async function getProject(
     );
   }
 
-  return project;
+  return { ...project, can_manage: await canManageProject(user, projectId) };
 }
 
 async function updateExistingProject(
