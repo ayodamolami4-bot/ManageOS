@@ -319,7 +319,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             </section>
           )}
 
-          {task.status === "SUBMITTED" && latestSubmission && !currentAssignee && companyUsers !== null && (
+          {task.status === "SUBMITTED" && latestSubmission && !currentAssignee && (
             <form className="workspace-data-form" onSubmit={submitReview} noValidate>
               <div className="workspace-field">
                 <label htmlFor={"decision-" + task.id}>Review decision</label>
