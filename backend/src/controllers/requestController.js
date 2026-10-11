@@ -159,6 +159,18 @@ async function updateRequestStatus(req, res) {
       });
     }
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "Only the assigned recipient can update this request" }
+      });
+    }
+
+    if (error.message === "INVALID_REQUEST_TRANSITION") {
+      return res.status(409).json({
+        error: { code: "INVALID_REQUEST_TRANSITION", message: "This request can no longer change to that status" }
+      });
+    }
+
     res.status(500).json({
       error: {
         code: "REQUEST_STATUS_UPDATE_FAILED",
