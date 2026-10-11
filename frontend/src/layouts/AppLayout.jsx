@@ -26,6 +26,8 @@ function AppLayout() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
 
+  const workspaceName = user?.company_name || "Your company workspace";
+
   const displayName =
     [user?.first_name, user?.last_name].filter(Boolean).join(" ") ||
     user?.email ||
@@ -72,7 +74,7 @@ function AppLayout() {
 
           <div className="app-company-context">
             <span>COMPANY WORKSPACE</span>
-            <strong>Company Operations</strong>
+            <strong>{workspaceName}</strong>
           </div>
         </div>
 
@@ -95,7 +97,7 @@ function AppLayout() {
         <header className="app-topbar">
           <div className="app-topbar-context">
             <span>WORKSPACE</span>
-            <strong>Company Operations</strong>
+            <strong>{workspaceName}</strong>
           </div>
 
           <div className="app-user">
