@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { get, post } from "../services/api";
+import { del, get, post } from "../services/api";
 import { apiErrorMessage } from "../utils/validation";
 import "./WorkspaceData.css";
 
@@ -89,6 +89,21 @@ export default function ProjectRelationshipsPanel({ projectId }) {
     }
   }
 
+  async function removeRelationship(type, person) {
+    if (!window.confirm("Remove " + displayName(person) + " from project " + type + "?")) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      await del("/project-relationships/" + projectId + "/" + type + "/" + person.id);
+      setNotice("Project " + (type === "leads" ? "lead" : "member") + " removed.");
+      reload();
+    } catch (error) {
+      setNotice(apiErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const candidates = companyUsers || [];
   const availableUnits = allUnits.filter((unit) => !linkedUnits.some((linked) => linked.id === unit.id));
   const availableMembers = candidates.filter((person) => !members.some((member) => member.id === person.id));
@@ -137,7 +152,16 @@ export default function ProjectRelationshipsPanel({ projectId }) {
 
           <article className="workspace-data-item">
             <h3>Project leads</h3>
-            <p className="workspace-data-meta">{leads.length ? leads.map(displayName).join(", ") : "No project leads assigned yet."}</p>
+            {leads.length === 0 && <p className="workspace-data-meta">No project leads assigned yet.</p>}
+            {leads.map((lead) => (
+              <div className="workspace-data-row" key={lead.id}>
+                <span>{displayName(lead)}</span>
+                <button className="workspace-action workspace-action--secondary" type="button"
+                  disabled={busy} onClick={() => removeRelationship("leads", lead)}>
+                  Remove lead
+                </button>
+              </div>
+            ))}
             {companyUsers && (
               <form className="workspace-data-form" noValidate onSubmit={(event) =>
                 createRelationship(event, "leads", selectedLead)
@@ -160,9 +184,16 @@ export default function ProjectRelationshipsPanel({ projectId }) {
 
           <article className="workspace-data-item">
             <h3>Project members</h3>
-            <div className="workspace-data-meta">
-              {members.length ? members.map(displayName).join(", ") : "No members yet."}
-            </div>
+            {members.length === 0 && <p className="workspace-data-meta">No members yet.</p>}
+            {members.map((member) => (
+              <div className="workspace-data-row" key={member.id}>
+                <span>{displayName(member)}</span>
+                <button className="workspace-action workspace-action--secondary" type="button"
+                  disabled={busy} onClick={() => removeRelationship("members", member)}>
+                  Remove member
+                </button>
+              </div>
+            ))}
             {companyUsers && (
               <form className="workspace-data-form" noValidate onSubmit={(event) =>
                 createRelationship(event, "members", selectedMember)
