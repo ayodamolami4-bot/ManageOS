@@ -12,7 +12,7 @@ const base = {
   estimatedEffortHours: 4,
 };
 
-function makeClient({ failNotification = false, alreadyAssigned = false, status = "ASSIGNED" } = {}) {
+function makeClient({ failNotification = false, alreadyAssigned = false, status = "ASSIGNED", hasEligibleUnit = true } = {}) {
   const calls = [];
   const client = {
     query: async (sql, params) => {
@@ -22,6 +22,9 @@ function makeClient({ failNotification = false, alreadyAssigned = false, status 
         return { rows: [{ id: base.taskId, project_id: "20ea5be8-c83d-4ca2-a2a3-37d10b79e04a", status }] };
       }
       if (statement.includes("FROM project_members")) return { rows: [{}] };
+      if (statement.includes("FROM user_roles ur")) return { rows: [{}] };
+      if (statement.includes("FROM organization_memberships om"))
+        return { rows: hasEligibleUnit ? [{ id: "unit-membership" }] : [] };
       if (statement.includes("SELECT id FROM task_assignments")) {
         return { rows: alreadyAssigned ? [{ id: "existing" }] : [] };
       }
@@ -91,4 +94,12 @@ test("completed tasks cannot be assigned again", async (t) => {
   await assert.rejects(assignTaskAtomically(base), /TASK_NOT_ASSIGNABLE/);
   assert.ok(calls.includes("ROLLBACK"));
   assert.ok(!calls.includes("COMMIT"));
+});
+
+test("employee without an eligible organization unit cannot be assigned", async (t) => {
+  const { client, calls } = makeClient({ hasEligibleUnit: false });
+  t.mock.method(pool, "connect", async () => client);
+  await assert.rejects(assignTaskAtomically(base), /EMPLOYEE_UNIT_MEMBERSHIP_REQUIRED/);
+  assert.ok(calls.includes("ROLLBACK"));
+  assert.ok(!calls.some((sql) => sql.includes("INSERT INTO task_assignments")));
 });
