@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { del, get, post } from "../../services/api";
 import TaskWorkflowPanel from "../../components/TaskWorkflowPanel";
@@ -22,6 +22,8 @@ const blank = {
 };
 
 function Work() {
+  const [searchParams] = useSearchParams();
+  const linkedTaskId = searchParams.get("taskId") || "";
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -33,7 +35,7 @@ function Work() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState(null);
-  const [expandedTaskId, setExpandedTaskId] = useState(null);
+  const [expandedTaskId, setExpandedTaskId] = useState(() => linkedTaskId || null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -136,6 +138,10 @@ function Work() {
       setBusyTaskId(null);
     }
   }
+
+  useEffect(() => {
+    if (linkedTaskId) setExpandedTaskId(linkedTaskId);
+  }, [linkedTaskId]);
 
   const projectNames = new Map(projects.map((project) => [project.id, project.name]));
 
@@ -263,10 +269,18 @@ function Work() {
         {loading && <p className="workspace-feedback" role="status">Loading tasks...</p>}
         {!loading && loadError && <p className="workspace-feedback" role="alert">{loadError}</p>}
         {!loading && !loadError && tasks.length === 0 && <p className="workspace-feedback">No accessible tasks yet.</p>}
+        {!loading && !loadError && linkedTaskId &&
+          !tasks.some((task) => task.id === linkedTaskId) && (
+          <p className="workspace-feedback" role="status">
+            The linked task is no longer accessible to your account.
+          </p>
+        )}
         {!loading && !loadError && (
           <div className="workspace-data-list">
             {tasks.map((task) => (
-              <article className="workspace-data-item" key={task.id}>
+              <article className="workspace-data-item" key={task.id}
+                id={"task-" + task.id}
+                style={task.id === linkedTaskId ? { borderLeft: "4px solid var(--copper)" } : undefined}>
                 <div className="workspace-data-row">
                   <div>
                     <h3>{task.title}</h3>
