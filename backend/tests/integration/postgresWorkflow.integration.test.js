@@ -545,9 +545,14 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     process.env.RESEND_FROM_EMAIL = "security@manageos.test";
     process.env.PUBLIC_APP_URL = "http://localhost:5173";
     let capturedResetLink = "";
+    let capturedInvitationLink = "";
     t.mock.method(globalThis, "fetch", async (url, options) => {
       assert.equal(url, "https://api.resend.com/emails");
       const message = JSON.parse(options.body);
+      if (message.subject.startsWith("You're invited")) {
+        capturedInvitationLink = message.text;
+        return { ok: message.to[0] !== "delivery-fail@manageos.test", status: 202 };
+      }
       assert.equal(message.to[0], "owner-integration@manageos.test");
       capturedResetLink = message.text;
       return { ok: true, status: 200 };
@@ -607,6 +612,53 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
         [companyId, ownerId]
       );
       assert.equal(resetAudit.rows.length, 1);
+
+      // In production, invite tokens must only travel by email, never
+      // through a JSON response. Failed deliveries must be revoked.
+      process.env.NODE_ENV = "production";
+      process.env.PUBLIC_APP_URL = "https://app.manageos.test";
+      const employeeRoleQuery = await pool.query(
+        `SELECT id FROM roles WHERE name='EMPLOYEE'
+         AND company_id IS NULL AND is_system = TRUE LIMIT 1`
+      );
+      const employeeRoleId = employeeRoleQuery.rows[0].id;
+      const deliveredInvite = await owner.post("/api/invitations", {
+        email: "invited-through-email@manageos.test",
+        roleId: employeeRoleId, organizationUnitId: null,
+      });
+      assert.equal(deliveredInvite.status, 201, JSON.stringify(deliveredInvite.body));
+      assert.equal(deliveredInvite.body.data.token, undefined);
+      assert.match(capturedInvitationLink, /token=[a-f0-9]{64}/);
+      const invitedToken = capturedInvitationLink.match(/token=([a-f0-9]{64})/)[1];
+      const acceptedByEmail = await owner.post("/api/invitations/accept", {
+        token: invitedToken, firstName: "Invited", lastName: "Tester",
+        password: "Invited-Long-Password-2026",
+      });
+      assert.equal(acceptedByEmail.status, 201, JSON.stringify(acceptedByEmail.body));
+
+      const failureInvite = await owner.post("/api/invitations", {
+        email: "delivery-fail@manageos.test",
+        roleId: employeeRoleId, organizationUnitId: null,
+      });
+      assert.equal(failureInvite.status, 503, JSON.stringify(failureInvite.body));
+      const failedRecord = await pool.query(
+        `SELECT status FROM invitations WHERE email='delivery-fail@manageos.test'`
+      );
+      assert.equal(failedRecord.rows.length, 1);
+      assert.equal(failedRecord.rows[0].status, "REVOKED");
+
+      const preservedKey = process.env.RESEND_API_KEY;
+      process.env.RESEND_API_KEY = "";
+      const unconfiguredInvite = await owner.post("/api/invitations", {
+        email: "unconfigured-delivery@manageos.test",
+        roleId: employeeRoleId, organizationUnitId: null,
+      });
+      assert.equal(unconfiguredInvite.status, 503);
+      process.env.RESEND_API_KEY = preservedKey;
+      const skippedRecord = await pool.query(
+        `SELECT 1 FROM invitations WHERE email='unconfigured-delivery@manageos.test'`
+      );
+      assert.equal(skippedRecord.rows.length, 0);
     } finally {
       if (previousEnv.key === undefined) delete process.env.RESEND_API_KEY;
       else process.env.RESEND_API_KEY = previousEnv.key;
@@ -614,6 +666,7 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       else process.env.RESEND_FROM_EMAIL = previousEnv.from;
       if (previousEnv.origin === undefined) delete process.env.PUBLIC_APP_URL;
       else process.env.PUBLIC_APP_URL = previousEnv.origin;
+      process.env.NODE_ENV = "test";
     }
 
   } finally {
