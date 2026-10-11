@@ -12,14 +12,14 @@ const base = {
   estimatedEffortHours: 4,
 };
 
-function makeClient({ failNotification = false, alreadyAssigned = false } = {}) {
+function makeClient({ failNotification = false, alreadyAssigned = false, status = "ASSIGNED" } = {}) {
   const calls = [];
   const client = {
     query: async (sql, params) => {
       const statement = String(sql);
       calls.push(statement);
       if (statement.includes("FROM tasks") && statement.includes("FOR UPDATE")) {
-        return { rows: [{ id: base.taskId, project_id: "20ea5be8-c83d-4ca2-a2a3-37d10b79e04a" }] };
+        return { rows: [{ id: base.taskId, project_id: "20ea5be8-c83d-4ca2-a2a3-37d10b79e04a", status }] };
       }
       if (statement.includes("FROM project_members")) return { rows: [{}] };
       if (statement.includes("SELECT id FROM task_assignments")) {
@@ -83,4 +83,12 @@ test("ending an assignment records history within one transaction", async (t) =>
   assert.ok(calls.some((sql) => sql.includes("UPDATE task_assignments")));
   assert.ok(calls.some((sql) => sql.includes("INSERT INTO audit_logs")));
   assert.ok(calls.includes("COMMIT"));
+});
+
+test("completed tasks cannot be assigned again", async (t) => {
+  const { client, calls } = makeClient({ status: "COMPLETED" });
+  t.mock.method(pool, "connect", async () => client);
+  await assert.rejects(assignTaskAtomically(base), /TASK_NOT_ASSIGNABLE/);
+  assert.ok(calls.includes("ROLLBACK"));
+  assert.ok(!calls.includes("COMMIT"));
 });
