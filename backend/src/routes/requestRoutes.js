@@ -9,11 +9,15 @@ const {
 
 const { authenticate } = require("../middleware/authMiddleware");
 
+const { validateBody, validateParams } = require("../middleware/validate");
+const { requestParams, requestBody, requestStatusBody } = require("../validators/operationalSchemas");
+
 const router = express.Router();
 
 router.post(
   "/requests",
   authenticate,
+  validateBody(requestBody),
   createRequest
 );
 
@@ -26,12 +30,15 @@ router.get(
 router.get(
   "/requests/:requestId",
   authenticate,
+  validateParams(requestParams),
   getRequestById
 );
 
 router.put(
   "/requests/:requestId/status",
   authenticate,
+  validateParams(requestParams),
+  validateBody(requestStatusBody),
   updateRequestStatus
 );
 
