@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { get, post } from "../../services/api";
 import TaskBlockersPanel from "../../components/TaskBlockersPanel";
@@ -8,6 +9,8 @@ import "../../components/WorkspaceData.css";
 import "./Updates.css";
 
 function Updates() {
+  const [searchParams] = useSearchParams();
+  const focusedRequestId = searchParams.get("requestId") || "";
   const [tasks, setTasks] = useState([]);
   const [taskId, setTaskId] = useState("");
   const [reports, setReports] = useState([]);
@@ -219,7 +222,7 @@ function Updates() {
       )}
 
       <section className="updates-stream">
-        <OperationalRequestsPanel />
+        <OperationalRequestsPanel focusedRequestId={focusedRequestId} />
       </section>
     </div>
   );
