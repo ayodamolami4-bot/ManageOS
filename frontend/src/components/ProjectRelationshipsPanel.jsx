@@ -7,7 +7,7 @@ function displayName(person) {
   return [person.first_name, person.last_name].filter(Boolean).join(" ") || person.email || "Team member";
 }
 
-export default function ProjectRelationshipsPanel({ projectId }) {
+export default function ProjectRelationshipsPanel({ projectId, canManage = false }) {
   const [members, setMembers] = useState([]);
   const [leads, setLeads] = useState([]);
   const [linkedUnits, setLinkedUnits] = useState([]);
@@ -29,8 +29,8 @@ export default function ProjectRelationshipsPanel({ projectId }) {
       ["Members", get("/project-relationships/" + projectId + "/members")],
       ["Leads", get("/project-relationships/" + projectId + "/leads")],
       ["Units", get("/project-relationships/" + projectId + "/organization-units")],
-      ["Company members", get("/users")],
-      ["Organization", get("/organization-units")],
+      ["Company members", canManage ? get("/users").catch(() => get("/requests/recipients")) : Promise.resolve({ data: [] })],
+      ["Organization", canManage ? get("/organization-units") : Promise.resolve({ data: [] })],
     ];
     Promise.allSettled(requests.map(([, call]) => call)).then((results) => {
       if (!active) return;
@@ -54,7 +54,7 @@ export default function ProjectRelationshipsPanel({ projectId }) {
     });
 
     return () => { active = false; };
-  }, [projectId, version]);
+  }, [projectId, canManage, version]);
 
   function reload() {
     setLoading(true);
@@ -131,7 +131,7 @@ export default function ProjectRelationshipsPanel({ projectId }) {
           <article className="workspace-data-item">
             <h3>Responsible organization units</h3>
             <p className="workspace-data-meta">{linkedUnits.length ? linkedUnits.map((unit) => unit.name).join(", ") : "No unit linked yet."}</p>
-            {companyUsers && (
+            {canManage && companyUsers && (
               <form className="workspace-data-form" noValidate onSubmit={(event) =>
                 createRelationship(event, "organization-units", selectedUnit)
               }>
@@ -156,13 +156,15 @@ export default function ProjectRelationshipsPanel({ projectId }) {
             {leads.map((lead) => (
               <div className="workspace-data-row" key={lead.id}>
                 <span>{displayName(lead)}</span>
-                <button className="workspace-action workspace-action--secondary" type="button"
-                  disabled={busy} onClick={() => removeRelationship("leads", lead)}>
-                  Remove lead
-                </button>
+                {canManage && (
+                  <button className="workspace-action workspace-action--secondary" type="button"
+                    disabled={busy} onClick={() => removeRelationship("leads", lead)}>
+                    Remove lead
+                  </button>
+                )}
               </div>
             ))}
-            {companyUsers && (
+            {canManage && companyUsers && potentialLeads.length > 0 && (
               <form className="workspace-data-form" noValidate onSubmit={(event) =>
                 createRelationship(event, "leads", selectedLead)
               }>
@@ -188,13 +190,15 @@ export default function ProjectRelationshipsPanel({ projectId }) {
             {members.map((member) => (
               <div className="workspace-data-row" key={member.id}>
                 <span>{displayName(member)}</span>
-                <button className="workspace-action workspace-action--secondary" type="button"
-                  disabled={busy} onClick={() => removeRelationship("members", member)}>
-                  Remove member
-                </button>
+                {canManage && (
+                  <button className="workspace-action workspace-action--secondary" type="button"
+                    disabled={busy} onClick={() => removeRelationship("members", member)}>
+                    Remove member
+                  </button>
+                )}
               </div>
             ))}
-            {companyUsers && (
+            {canManage && companyUsers && (
               <form className="workspace-data-form" noValidate onSubmit={(event) =>
                 createRelationship(event, "members", selectedMember)
               }>
