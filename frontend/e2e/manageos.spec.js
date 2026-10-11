@@ -143,6 +143,46 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await taskCard.getByRole("button", { name: "Assign task" }).click();
     await expect(owner.getByText("Task assigned and employee notified.")).toBeVisible();
 
+    // Files must upload, download and delete as actual browser actions,
+    // not only render buttons. Use a tiny PNG with recognized magic bytes.
+    await owner.goto("/app/files");
+    await owner.locator("#files-project").selectOption({ label: projectName });
+    await owner.locator("#files-upload").setInputFiles({
+      name: "evidence.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==",
+        "base64"
+      ),
+    });
+    await owner.getByRole("button", { name: "Upload file" }).click();
+    await expect(owner.getByText("File uploaded.")).toBeVisible();
+    const fileEntry = owner.locator("article.workspace-data-item").filter({
+      has: owner.getByRole("heading", { name: "evidence.png" }),
+    });
+    await expect(fileEntry).toBeVisible();
+
+    const downloadPromise = owner.waitForEvent("download");
+    await fileEntry.getByRole("link", { name: "Download" }).click();
+    const fileDownload = await downloadPromise;
+    expect(fileDownload.suggestedFilename()).toBe("evidence.png");
+
+    owner.once("dialog", (dialog) => dialog.accept());
+    await fileEntry.getByRole("button", { name: "Delete" }).click();
+    await expect(owner.getByText("File deleted.")).toBeVisible();
+    await expect(fileEntry).toHaveCount(0);
+
+
+
+    await employee.goto("/app/notifications");
+    const assignmentNotice = employee.locator("article.workspace-data-item").filter({
+      hasText: "New task assigned",
+    });
+    await expect(assignmentNotice.getByRole("link", { name: "Open related work" })).toBeVisible();
+    await assignmentNotice.getByRole("link", { name: "Open related work" }).click();
+    await expect(employee).toHaveURL(/\/app\/work\?taskId=[0-9a-f-]+/i);
+    await expect(employee.getByRole("heading", { name: taskTitle })).toBeVisible();
+
     await employee.goto("/app/work");
     taskCard = employee.locator("article.workspace-data-item").filter({
       has: employee.getByRole("heading", { name: taskTitle }),
