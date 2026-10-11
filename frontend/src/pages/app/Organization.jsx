@@ -1,3 +1,4 @@
+import OrganizationRegister from "../../components/OrganizationRegister";
 import "./Organization.css";
 
 function Organization() {
@@ -19,9 +20,6 @@ function Organization() {
           </p>
         </div>
 
-        <button type="button" className="organization-create-button">
-          Add organization unit
-        </button>
       </header>
 
       <section className="organization-model">
@@ -76,34 +74,7 @@ function Organization() {
       </section>
 
       <section className="organization-register">
-        <div className="organization-section-heading">
-          <div>
-            <p className="organization-section-kicker">
-              ORGANIZATION REGISTER
-            </p>
-
-            <h2>How the company is organized.</h2>
-          </div>
-
-          <span>00</span>
-        </div>
-
-        <div className="organization-empty-state">
-          <div className="organization-empty-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-
-          <div>
-            <strong>No organization units have been created.</strong>
-
-            <p>
-              Once the company structure is established, organization units
-              and their members will appear here.
-            </p>
-          </div>
-        </div>
+        <OrganizationRegister />
       </section>
 
       <section className="organization-principle">
