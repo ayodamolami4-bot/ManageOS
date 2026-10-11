@@ -405,7 +405,40 @@ async function acceptInvitation({
   }
 }
 
+
+/**
+ * A failed delivery must not leave a pending invitation that blocks retry.
+ * The raw bearer token remains inaccessible and cannot be accepted.
+ */
+async function revokeUndeliveredInvitation({ invitationId, companyId, actorId }) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `UPDATE invitations SET status = 'REVOKED', revoked_at = NOW()
+       WHERE id = $1 AND company_id = $2 AND status = 'PENDING'
+       RETURNING id`,
+      [invitationId, companyId]
+    );
+    if (result.rows.length) {
+      await client.query(
+        `INSERT INTO audit_logs
+         (company_id, actor_id, action, resource_type, resource_id, metadata)
+         VALUES ($1, $2, 'USER_INVITATION_DELIVERY_FAILED', 'INVITATION', $3, $4)`,
+        [companyId, actorId, invitationId, { delivery: "failed" }]
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   createInvitation,
-  acceptInvitation
+  acceptInvitation,
+  revokeUndeliveredInvitation
 };
