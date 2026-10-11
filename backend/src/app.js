@@ -28,6 +28,7 @@ const activityRoutes = require("./routes/activityRoutes");
 const fileRoutes = require("./routes/fileRoutes");
 const userRoutes = require("./routes/userRoutes");
 const invitationRoutes = require("./routes/invitationRoutes");
+const auditLogRoutes = require("./routes/auditLogRoutes");
 
 const app = express();
 
@@ -334,6 +335,11 @@ app.use(
   "/api/invitations",
   invitationRoutes
 );
+
+/*
+ * Formal audit history; permission-protected and company-scoped.
+ */
+app.use("/api/audit-logs", auditLogRoutes);
 
 /*
  * 404 handler.
