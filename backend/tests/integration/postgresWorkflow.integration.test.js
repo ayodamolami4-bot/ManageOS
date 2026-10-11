@@ -147,6 +147,20 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       `/api/project-relationships/${projectId}/leads`, { userId: managerId }
     );
     assert.equal(validLead.status, 201, JSON.stringify(validLead.body));
+    const managerMembership = await owner.post(
+      `/api/project-relationships/${projectId}/members`, { userId: managerId }
+    );
+    assert.equal(managerMembership.status, 201, JSON.stringify(managerMembership.body));
+
+    const projectHistory = await pool.query(
+      `SELECT action FROM audit_logs WHERE company_id = $1
+       AND resource_type = 'PROJECT' AND resource_id = $2`,
+      [companyId, projectId]
+    );
+    assert.ok(projectHistory.rows.some((row) => row.action === "PROJECT_LEAD_ASSIGNED"));
+    assert.ok(projectHistory.rows.some((row) => row.action === "PROJECT_MEMBER_ADDED"));
+    assert.ok(projectHistory.rows.some((row) => row.action === "PROJECT_UNIT_LINKED"));
+
     const leads = await employee.get(`/api/project-relationships/${projectId}/leads`);
     assert.equal(leads.status, 200, JSON.stringify(leads.body));
     assert.ok(leads.body.data.some((lead) => lead.id === managerId));
