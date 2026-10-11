@@ -3,7 +3,8 @@ const express = require("express");
 const {
   assignLead,
   addMember,
-  addOrganizationUnit
+  addOrganizationUnit,
+  getMembers
 } = require("../controllers/projectRelationshipController");
 
 const {
@@ -11,10 +12,19 @@ const {
 } = require("../middleware/authMiddleware");
 
 const {
-  requireProjectManagement
+  requireProjectManagement,
+  requireProjectView
 } = require("../middleware/projectAuthorization");
 
+const { validateBody, validateParams } = require("../middleware/validate");
+const { z } = require("zod");
+const projectRef = z.object({ projectId: z.string().uuid() }).strict();
+const memberRef = z.object({ userId: z.string().uuid() }).strict();
+
 const router = express.Router();
+
+router.get("/:projectId/members", authenticate, validateParams(projectRef), requireProjectView, getMembers);
+
 
 router.post(
   "/:projectId/leads",
@@ -26,6 +36,8 @@ router.post(
 router.post(
   "/:projectId/members",
   authenticate,
+  validateParams(projectRef),
+  validateBody(memberRef),
   requireProjectManagement,
   addMember
 );
