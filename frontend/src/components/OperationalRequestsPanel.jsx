@@ -7,10 +7,11 @@ import "./WorkspaceData.css";
 
 const types = ["APPROVAL", "ACCESS", "DECISION", "HELP", "OTHER"];
 
-export default function OperationalRequestsPanel() {
+export default function OperationalRequestsPanel({ focusedRequestId = "" }) {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [users, setUsers] = useState([]);
+  const [recipientsError, setRecipientsError] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
@@ -25,7 +26,7 @@ export default function OperationalRequestsPanel() {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([get("/requests"), get("/users")])
+    Promise.allSettled([get("/requests"), get("/requests/recipients")])
       .then(([requestsResult, usersResult]) => {
         if (!active) return;
         if (requestsResult.status === "fulfilled") {
@@ -36,8 +37,10 @@ export default function OperationalRequestsPanel() {
         }
         if (usersResult.status === "fulfilled") {
           setUsers(Array.isArray(usersResult.value?.data) ? usersResult.value.data : []);
+          setRecipientsError("");
         } else {
           setUsers([]);
+          setRecipientsError(apiErrorMessage(usersResult.reason));
         }
       })
       .finally(() => {
@@ -109,7 +112,7 @@ export default function OperationalRequestsPanel() {
 
   const displayName = (person) =>
     [person?.first_name, person?.last_name].filter(Boolean).join(" ") ||
-    person?.email || "Company member";
+    "Company member";
   const directory = new Map(users.map((person) => [person.id, displayName(person)]));
 
   return (
@@ -129,6 +132,18 @@ export default function OperationalRequestsPanel() {
       </div>
 
       {notice && <p className="workspace-feedback" role="status">{notice}</p>}
+      {recipientsError && (
+        <p className="workspace-feedback" role="alert">
+          Recipient directory could not load: {recipientsError}
+          {" "}You can retry or create a request for yourself.
+        </p>
+      )}
+      {!loading && !loadError && focusedRequestId &&
+       !requests.some((item) => item.id === focusedRequestId) && (
+        <p className="workspace-feedback" role="status">
+          The linked request is no longer accessible or has been removed.
+        </p>
+      )}
 
       {formOpen && (
         <form className="workspace-data-form" onSubmit={create} noValidate>
@@ -190,7 +205,10 @@ export default function OperationalRequestsPanel() {
               : item.requested_by === user?.id;
             const isOpen = item.status === "OPEN" || item.status === "IN_PROGRESS";
             return (
-              <article className="workspace-data-item" key={item.id}>
+              <article className="workspace-data-item" key={item.id}
+                id={"request-" + item.id}
+                aria-label={item.id === focusedRequestId ? "Selected request: " + item.title : undefined}
+                style={item.id === focusedRequestId ? { borderLeft: "4px solid var(--copper)" } : undefined}>
                 <div className="workspace-data-row">
                   <div>
                     <h3>{item.title}</h3>
