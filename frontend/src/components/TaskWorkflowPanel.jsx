@@ -23,6 +23,8 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
   const [refresh, setRefresh] = useState(0);
   const [assignmentDraft, setAssignmentDraft] = useState({ userId: "", estimatedEffortHours: "" });
   const [memberUserId, setMemberUserId] = useState("");
+  const [handoffUserId, setHandoffUserId] = useState("");
+  const [handoffHours, setHandoffHours] = useState("");
   const [submissionDraft, setSubmissionDraft] = useState("");
   const [reviewDraft, setReviewDraft] = useState({ decision: "APPROVED", comment: "" });
   const [fieldErrors, setFieldErrors] = useState({});
@@ -157,6 +159,32 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
     );
   }
 
+  function reassign(event) {
+    event.preventDefault();
+    if (!active) return;
+    if (!members.some((member) => member.id === handoffUserId) ||
+        handoffUserId === active.user_id) {
+      setFieldErrors({ handoffUserId: "Choose another current project member." });
+      return;
+    }
+    let effort = null;
+    if (handoffHours.trim() !== "") {
+      effort = Number(handoffHours);
+      if (!Number.isFinite(effort) || effort < 0 || effort > 9999.99 ||
+          Math.abs(Math.round(effort * 100) - effort * 100) > 0.000001) {
+        setFieldErrors({ handoffHours: "Use 0–9999.99 hours, with up to two decimals." });
+        return;
+      }
+    }
+    submitAction(
+      () => put("/task-assignments/" + active.id + "/reassign", {
+        userId: handoffUserId,
+        estimatedEffortHours: effort,
+      }),
+      "Task handed off. The new assignee has been notified."
+    );
+  }
+
   function endAssignment() {
     if (!active || !window.confirm("End this task assignment?")) return;
     submitAction(
@@ -272,6 +300,34 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
                 <button type="submit" className="workspace-action workspace-action--secondary" disabled={busy}>
                   Add project member
                 </button>
+              </div>
+            </form>
+          )}
+
+          {active && ["ASSIGNED", "IN_PROGRESS"].includes(task.status) && !currentAssignee && members.length > 1 && (
+            <form className="workspace-data-form" onSubmit={reassign} noValidate>
+              <div className="workspace-field">
+                <label htmlFor={"handoff-" + task.id}>Hand off to another project member</label>
+                <select id={"handoff-" + task.id} disabled={busy} value={handoffUserId}
+                  onChange={(event) => setHandoffUserId(event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.handoffUserId)}>
+                  <option value="">Choose new assignee</option>
+                  {members.filter((member) => member.id !== active.user_id).map((member) => (
+                    <option key={member.id} value={member.id}>{personName(member)}</option>
+                  ))}
+                </select>
+                {fieldError("handoffUserId")}
+              </div>
+              <div className="workspace-field">
+                <label htmlFor={"handoff-hours-" + task.id}>New estimated hours (optional)</label>
+                <input type="number" min="0" max="9999.99" step="0.01"
+                  id={"handoff-hours-" + task.id} value={handoffHours} disabled={busy}
+                  aria-invalid={Boolean(fieldErrors.handoffHours)}
+                  onChange={(event) => setHandoffHours(event.target.value)} />
+                {fieldError("handoffHours")}
+              </div>
+              <div className="workspace-actions">
+                <button className="workspace-action" type="submit" disabled={busy}>Reassign task</button>
               </div>
             </form>
           )}
