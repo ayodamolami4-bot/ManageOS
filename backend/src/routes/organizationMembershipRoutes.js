@@ -11,6 +11,16 @@ const {
   authenticate
 } = require("../middleware/authMiddleware");
 
+const { z } = require("zod");
+const { validateBody, validateParams } = require("../middleware/validate");
+const uuid = z.string().uuid();
+const createMembershipBody = z.object({
+  userId: uuid,
+  organizationUnitId: uuid
+}).strict();
+const membershipIdParams = z.object({ membershipId: uuid }).strict();
+const userIdParams = z.object({ userId: uuid }).strict();
+
 const router = express.Router();
 
 /*
@@ -27,6 +37,7 @@ const router = express.Router();
 router.post(
   "/",
   authenticate,
+  validateBody(createMembershipBody),
   addMembership
 );
 
@@ -48,6 +59,7 @@ router.get(
 router.get(
   "/user/:userId",
   authenticate,
+  validateParams(userIdParams),
   getMembershipsForManagedUser
 );
 
@@ -60,6 +72,7 @@ router.get(
 router.delete(
   "/:membershipId",
   authenticate,
+  validateParams(membershipIdParams),
   removeMembershipById
 );
 
