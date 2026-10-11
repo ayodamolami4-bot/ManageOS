@@ -124,6 +124,41 @@ async function assignTaskAtomically({
     );
     if (!member.rows.length) throw new Error("USER_NOT_PROJECT_MEMBER");
 
+    // An EMPLOYEE must already belong to an organization unit.
+    // If this project is linked to units, one must match. Lock the
+    // membership row against a concurrent unit-membership deletion.
+    const employeeRole = await client.query(
+      `SELECT 1 FROM user_roles ur
+       JOIN roles r ON r.id = ur.role_id
+       JOIN users u ON u.id = ur.user_id
+       WHERE ur.user_id = $1 AND u.company_id = $2
+         AND r.name = 'EMPLOYEE' AND r.is_system = TRUE
+         AND r.company_id IS NULL LIMIT 1`,
+      [userId, companyId]
+    );
+    if (employeeRole.rows.length) {
+      const unitMembership = await client.query(
+        `SELECT om.id FROM organization_memberships om
+         JOIN organization_units ou ON ou.id = om.organization_unit_id
+         WHERE om.user_id = $1 AND ou.company_id = $2
+           AND (
+             NOT EXISTS (
+               SELECT 1 FROM project_organization_units
+               WHERE project_id = $3
+             )
+             OR om.organization_unit_id IN (
+               SELECT organization_unit_id FROM project_organization_units
+               WHERE project_id = $3
+             )
+           )
+         LIMIT 1 FOR SHARE OF om`,
+        [userId, companyId, task.project_id]
+      );
+      if (!unitMembership.rows.length) {
+        throw new Error("EMPLOYEE_UNIT_MEMBERSHIP_REQUIRED");
+      }
+    }
+
     const assigned = await client.query(
       `SELECT id FROM task_assignments
        WHERE task_id = $1 AND ended_at IS NULL LIMIT 1`,
