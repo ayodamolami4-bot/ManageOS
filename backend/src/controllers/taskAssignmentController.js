@@ -1,7 +1,8 @@
 const {
   assignTask,
   getTaskAssignmentHistory,
-  endAssignment
+  endAssignment,
+  reassignAssignment
 } = require("../services/taskAssignmentService");
 
 async function createAssignment(
@@ -251,8 +252,48 @@ async function endTaskAssignment(
   }
 }
 
+
+async function reassignTask(req, res) {
+  try {
+    const assignment = await reassignAssignment(
+      req.params.assignmentId,
+      req.body,
+      req.user
+    );
+    return res.status(200).json({
+      data: assignment, message: "Task reassigned successfully",
+    });
+  } catch (error) {
+    const code = error.message;
+    if (code === "ASSIGNMENT_NOT_FOUND") {
+      return res.status(404).json({
+        error: { code, message: "Active assignment not found" },
+      });
+    }
+    if (code === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code, message: "You cannot reassign this task" },
+      });
+    }
+    const conflicts = {
+      USER_NOT_PROJECT_MEMBER: "Choose a member of the project",
+      EMPLOYEE_UNIT_MEMBERSHIP_REQUIRED: "Add the employee to an eligible organization unit first",
+      TASK_NOT_ASSIGNABLE: "Work under review or already completed cannot be reassigned",
+      ASSIGNMENT_ALREADY_OWNED: "This person is already assigned",
+    };
+    if (conflicts[code]) {
+      return res.status(409).json({ error: { code, message: conflicts[code] } });
+    }
+    console.error("Task reassignment failed:", error);
+    return res.status(500).json({
+      error: { code: "TASK_REASSIGNMENT_FAILED", message: "Unable to reassign task" },
+    });
+  }
+}
+
 module.exports = {
   createAssignment,
   getAssignments,
-  endTaskAssignment
+  endTaskAssignment,
+  reassignTask
 };
