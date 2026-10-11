@@ -29,6 +29,7 @@ function Work() {
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [projectError, setProjectError] = useState("");
   const [reloadIndex, setReloadIndex] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [draft, setDraft] = useState(blank);
@@ -54,6 +55,9 @@ function Work() {
 
         if (projectResult.status === "fulfilled") {
           setProjects(Array.isArray(projectResult.value?.data) ? projectResult.value.data : []);
+          setProjectError("");
+        } else {
+          setProjectError(apiErrorMessage(projectResult.reason));
         }
       })
       .finally(() => {
@@ -142,6 +146,7 @@ function Work() {
   const visibleTaskId = expandedTaskId === null ? linkedTaskId : expandedTaskId;
 
   const projectNames = new Map(projects.map((project) => [project.id, project.name]));
+  const manageableProjects = projects.filter((project) => project.can_create_tasks);
 
   function errorFor(field) {
     return errors[field] ? (
@@ -185,12 +190,18 @@ function Work() {
             <p className="work-section-kicker">WORK REGISTER</p>
             <h2>Responsibilities moving through the company.</h2>
           </div>
-          <button className="workspace-action" type="button" onClick={() => setFormOpen((open) => !open)}>
-            {formOpen ? "Cancel" : "Create task"}
-          </button>
+          {manageableProjects.length > 0 && !projectError && (
+            <button className="workspace-action" type="button" onClick={() => setFormOpen((open) => !open)}>
+              {formOpen ? "Cancel" : "Create task"}
+            </button>
+          )}
         </div>
 
         {message && <p className="workspace-feedback" role="status">{message}</p>}
+        {projectError && <p className="workspace-feedback" role="alert">Unable to load project permissions: {projectError}</p>}
+        {!loading && !projectError && manageableProjects.length === 0 && (
+          <p className="workspace-data-meta">Only a manager or project lead can create tasks. You can still open work assigned to you.</p>
+        )}
 
         {formOpen && (
           <form className="workspace-data-form" onSubmit={createTask} noValidate>
@@ -201,7 +212,7 @@ function Work() {
                 onChange={(event) => update("projectId", event.target.value)}
               >
                 <option value="">Choose a project</option>
-                {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                {manageableProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
               </select>
               {errorFor("projectId")}
             </div>
@@ -297,9 +308,11 @@ function Work() {
                       onClick={() => setExpandedTaskId((current) => (current ?? linkedTaskId) === task.id ? "" : task.id)}>
                       {visibleTaskId === task.id ? "Close workflow" : "Assignment & review"}
                     </button>
-                    <button className="workspace-action workspace-action--secondary" type="button"
-                      disabled={busyTaskId === task.id}
-                      onClick={() => deleteTask(task)}>Delete</button>
+                    {task.can_manage && (
+                      <button className="workspace-action workspace-action--secondary" type="button"
+                        disabled={busyTaskId === task.id}
+                        onClick={() => deleteTask(task)}>Delete</button>
+                    )}
                   </div>
                 </div>
                 {visibleTaskId === task.id && (
