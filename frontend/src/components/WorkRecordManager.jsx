@@ -12,6 +12,7 @@ import {
   validateWorkDraft,
 } from "../utils/validation";
 import "./WorkspaceData.css";
+import GoalAlignmentPanel from "./GoalAlignmentPanel";
 
 function emptyDraft(kind) {
   return {
@@ -167,6 +168,7 @@ export default function WorkRecordManager({ kind }) {
   const [formOpen, setFormOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [deletingId, setDeletingId] = useState(null);
+  const [expandedGoalId, setExpandedGoalId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -301,6 +303,13 @@ export default function WorkRecordManager({ kind }) {
                     Edit
                   </button>
                   {kind === "goal" && (
+                    <button type="button" className="workspace-action workspace-action--secondary"
+                      aria-expanded={expandedGoalId === record.id}
+                      onClick={() => setExpandedGoalId((current) => current === record.id ? "" : record.id)}>
+                      {expandedGoalId === record.id ? "Close linked projects" : "Linked projects"}
+                    </button>
+                  )}
+                  {kind === "goal" && (
                     <button
                       type="button"
                       className="workspace-action workspace-action--secondary"
@@ -312,6 +321,9 @@ export default function WorkRecordManager({ kind }) {
                   )}
                 </div>
               </div>
+              {kind === "goal" && expandedGoalId === record.id && (
+                <GoalAlignmentPanel goalId={record.id} />
+              )}
             </article>
           ))}
         </div>
