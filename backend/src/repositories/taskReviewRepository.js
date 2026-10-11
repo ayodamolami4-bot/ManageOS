@@ -7,6 +7,7 @@ const {
 const {
   createActivityWithClient
 } = require("./activityRepository");
+const { createAuditLogWithClient } = require("./auditLogRepository");
 
 async function createTaskReview({
   submissionId,
@@ -387,6 +388,17 @@ async function createReviewAndApplyDecision({
         }
       );
     }
+
+    await createAuditLogWithClient(client, {
+      companyId,
+      actorId: reviewedBy,
+      action: "TASK_REVIEW_DECIDED",
+      resourceType: "TASK",
+      resourceId: submission.task_id,
+      oldValues: { status: "SUBMITTED" },
+      newValues: { status: finalStatus, decision, review_id: review.id },
+      metadata: { submission_id: submissionId },
+    });
 
     const taskResult = await client.query(
       `
