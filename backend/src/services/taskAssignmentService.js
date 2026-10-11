@@ -3,6 +3,7 @@ const {
   getTaskAssignments,
   assignTaskAtomically,
   endTaskAssignmentAtomically,
+  reassignTaskAtomically,
 } = require("../repositories/taskAssignmentRepository");
 const {
   canManageTask,
@@ -56,8 +57,27 @@ async function endAssignment(assignmentId, actor) {
   });
 }
 
+
+async function reassignAssignment(assignmentId, { userId, estimatedEffortHours }, actor) {
+  const active = await pool.query(
+    `SELECT ta.task_id FROM task_assignments ta
+     JOIN tasks t ON t.id = ta.task_id
+     WHERE ta.id = $1 AND ta.ended_at IS NULL AND t.company_id = $2`,
+    [assignmentId, actor.company_id]
+  );
+  const taskId = active.rows[0]?.task_id;
+  if (!taskId) throw new Error("ASSIGNMENT_NOT_FOUND");
+  if (!(await canManageTask(actor, taskId))) throw new Error("FORBIDDEN");
+
+  return reassignTaskAtomically({
+    assignmentId, taskId, companyId: actor.company_id,
+    newUserId: userId, reassignedBy: actor.id, estimatedEffortHours,
+  });
+}
+
 module.exports = {
   assignTask,
   getTaskAssignmentHistory,
   endAssignment,
+  reassignAssignment,
 };
