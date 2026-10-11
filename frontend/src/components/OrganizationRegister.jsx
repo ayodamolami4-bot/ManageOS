@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { get, post } from "../services/api";
+import { useAuth } from "../context/useAuth";
 import {
   apiErrorMessage,
   apiFieldErrors,
@@ -16,6 +17,10 @@ const initialDraft = {
 };
 
 export default function OrganizationRegister() {
+  const { user } = useAuth();
+  const canCreateUnit = (user?.roles || []).some((role) =>
+    role.name === "OWNER" || (role.name === "MANAGER" && !role.organization_unit_id)
+  );
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -118,7 +123,7 @@ export default function OrganizationRegister() {
             {loading ? "Loading..." : String(units.length) + " units"}
           </p>
         </div>
-        {!formOpen && (
+        {canCreateUnit && !formOpen && (
           <button type="button" className="workspace-action" onClick={() => setFormOpen(true)}>
             Add organization unit
           </button>
