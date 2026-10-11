@@ -88,7 +88,7 @@ async function createScopedTeamLead(companyId, ownerId, unitId) {
   return leadId;
 }
 
-test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async () => {
+test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async (t) => {
   const owner = await newClient();
   const employee = await newClient();
   const outsider = await newClient();
@@ -533,6 +533,89 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       status: "IN_PROGRESS",
     });
     assert.equal(staleChange.status, 409);
+
+    // Account recovery: actual HTTP endpoints and external delivery stub.
+    // No reset secrets are logged, committed or exposed by the API.
+    const previousEnv = {
+      key: process.env.RESEND_API_KEY,
+      from: process.env.RESEND_FROM_EMAIL,
+      origin: process.env.PUBLIC_APP_URL,
+    };
+    process.env.RESEND_API_KEY = "re_ci_test_only";
+    process.env.RESEND_FROM_EMAIL = "security@manageos.test";
+    process.env.PUBLIC_APP_URL = "http://localhost:5173";
+    let capturedResetLink = "";
+    t.mock.method(globalThis, "fetch", async (url, options) => {
+      assert.equal(url, "https://api.resend.com/emails");
+      const message = JSON.parse(options.body);
+      assert.equal(message.to[0], "owner-integration@manageos.test");
+      capturedResetLink = message.text;
+      return { ok: true, status: 200 };
+    });
+    try {
+      const forgotten = await owner.post("/api/auth/forgot-password", {
+        email: "OWNER-INTEGRATION@MANAGEOS.TEST",
+      });
+      assert.equal(forgotten.status, 200, JSON.stringify(forgotten.body));
+      assert.ok(!JSON.stringify(forgotten.body).includes("token"));
+      const missing = await owner.post("/api/auth/forgot-password", {
+        email: "unknown@manageos.test",
+      });
+      assert.equal(missing.status, 200);
+      assert.deepEqual(missing.body, forgotten.body);
+
+      const tokenMatch = capturedResetLink.match(/token=([a-f0-9]{64})/);
+      assert.ok(tokenMatch, "a reset URL should be sent through email");
+      const resetToken = tokenMatch[1];
+      const hash = require("../../src/services/passwordRecoveryService").hashResetToken(resetToken);
+      const stored = await pool.query(
+        "SELECT token_hash FROM password_reset_tokens WHERE user_id=$1 AND used_at IS NULL",
+        [ownerId]
+      );
+      assert.equal(stored.rows.length, 1);
+      assert.equal(stored.rows[0].token_hash, hash);
+      assert.notEqual(stored.rows[0].token_hash, resetToken);
+
+      const invalidReset = await owner.post("/api/auth/reset-password", {
+        token: "0".repeat(64), password: "A-different-long-password-2026",
+      });
+      assert.equal(invalidReset.status, 400);
+
+      const validReset = await owner.post("/api/auth/reset-password", {
+        token: resetToken, password: "A-different-long-password-2026",
+      });
+      assert.equal(validReset.status, 200, JSON.stringify(validReset.body));
+      const replay = await owner.post("/api/auth/reset-password", {
+        token: resetToken, password: "A-different-long-password-2026",
+      });
+      assert.equal(replay.status, 400);
+
+      const oldSession = await owner.get("/api/auth/me");
+      assert.equal(oldSession.status, 401);
+      const oldLogin = await owner.post("/api/auth/login", {
+        email: "owner-integration@manageos.test", password: secret,
+      });
+      assert.equal(oldLogin.status, 401);
+      const newLogin = await owner.post("/api/auth/login", {
+        email: "owner-integration@manageos.test", password: "A-different-long-password-2026",
+      });
+      assert.equal(newLogin.status, 200, JSON.stringify(newLogin.body));
+
+      const resetAudit = await pool.query(
+        `SELECT action FROM audit_logs WHERE company_id = $1
+         AND actor_id = $2 AND action = 'USER_PASSWORD_RESET'`,
+        [companyId, ownerId]
+      );
+      assert.equal(resetAudit.rows.length, 1);
+    } finally {
+      if (previousEnv.key === undefined) delete process.env.RESEND_API_KEY;
+      else process.env.RESEND_API_KEY = previousEnv.key;
+      if (previousEnv.from === undefined) delete process.env.RESEND_FROM_EMAIL;
+      else process.env.RESEND_FROM_EMAIL = previousEnv.from;
+      if (previousEnv.origin === undefined) delete process.env.PUBLIC_APP_URL;
+      else process.env.PUBLIC_APP_URL = previousEnv.origin;
+    }
+
   } finally {
     await pool.end();
   }
