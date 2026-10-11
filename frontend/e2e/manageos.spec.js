@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { test, expect } from "@playwright/test";
 
 const PASSWORD = "ManageOS-Browser-Tests-2026!";
