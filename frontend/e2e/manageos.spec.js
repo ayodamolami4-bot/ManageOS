@@ -82,6 +82,7 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await owner.getByRole("button", { name: /Create ManageOS account/ }).click();
     await expect(owner).toHaveURL(/\/login$/);
     await signIn(owner, ownerEmail);
+    await expect(owner.getByText(`Browser Company ${id}`).first()).toBeVisible();
 
     await owner.goto("/app/organization");
     await owner.getByRole("button", { name: "Add organization unit" }).click();
@@ -224,4 +225,31 @@ test("mobile form is navigable without horizontal page overflow", async ({ page 
     content: document.documentElement.scrollWidth,
   }));
   expect(widths.content).toBeLessThanOrEqual(widths.viewport + 4);
+});
+
+test("password recovery forms validate credentials and show service failures", async ({ page }) => {
+  await page.goto("/forgot-password");
+  await expect(page.getByRole("heading", { name: "Forgot your password?" })).toBeVisible();
+  await page.locator("#forgot-email").fill("123456");
+  await page.getByRole("button", { name: /Send reset instructions/ }).click();
+  await expect(page.getByRole("alert").getByText("Enter a valid email address.")).toBeVisible();
+
+  await page.locator("#forgot-email").fill("unknown@manageos.test");
+  await page.getByRole("button", { name: /Send reset instructions/ }).click();
+  await expect(page.getByRole("alert").getByText(/temporarily unavailable/i)).toBeVisible();
+
+  await page.goto("/reset-password?token=" + "f".repeat(64));
+  await page.locator("#new-password").fill("short");
+  await page.locator("#confirm-new-password").fill("short");
+  await page.getByRole("button", { name: /Save new password/ }).click();
+  await expect(page.getByRole("alert").getByText(/between 12 and 128/i)).toBeVisible();
+
+  await page.locator("#new-password").fill("valid-password-length-2026");
+  await page.locator("#confirm-new-password").fill("does-not-match-password");
+  await page.getByRole("button", { name: /Save new password/ }).click();
+  await expect(page.getByRole("alert").getByText(/Passwords do not match/i)).toBeVisible();
+
+  await page.goto("/reset-password");
+  await expect(page.getByText(/Open a valid reset link from your email/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Save new password/ })).toBeDisabled();
 });
