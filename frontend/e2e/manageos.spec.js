@@ -204,11 +204,15 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await expect(employee.getByRole("heading", { name: taskTitle })).toBeVisible();
 
     await employee.goto("/app/work");
+    await expect(employee.getByRole("button", { name: "Create task" })).toHaveCount(0);
     taskCard = employee.locator("article.workspace-data-item").filter({
       has: employee.getByRole("heading", { name: taskTitle }),
     });
     await expect(taskCard).toBeVisible();
     await taskCard.getByRole("button", { name: "Assignment & review" }).click();
+    await expect(taskCard.getByRole("button", { name: "Delete" })).toHaveCount(0);
+    await expect(taskCard.getByRole("button", { name: "End assignment" })).toHaveCount(0);
+    await expect(taskCard.getByRole("button", { name: "Assign task" })).toHaveCount(0);
     await taskCard.getByRole("button", { name: "Start work" }).click();
     await expect(employee.getByText("Task started.")).toBeVisible();
     await taskCard.locator('textarea[id^="submission-"]').fill("Implemented the requested work and verified acceptance criteria.");
@@ -252,6 +256,7 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await expect(manager.getByRole("heading", { name: projectName })).toBeVisible();
     await manager.goto("/app/work");
     await expect(manager.getByRole("heading", { name: taskTitle })).toBeVisible();
+    await expect(manager.getByRole("button", { name: "Create task" })).toBeVisible();
 
     await lead.goto(projectPath);
     await expect(lead.getByRole("heading", { name: projectName })).toBeVisible();
