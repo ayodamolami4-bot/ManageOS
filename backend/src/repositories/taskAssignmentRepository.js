@@ -1,4 +1,7 @@
 const pool = require("../db/database");
+const { createNotificationWithClient } = require("./notificationRepository");
+const { createActivityWithClient } = require("./activityRepository");
+const { createAuditLogWithClient } = require("./auditLogRepository");
 
 async function createTaskAssignment({
   taskId,
@@ -89,9 +92,128 @@ async function endTaskAssignment(
   return result.rows[0];
 }
 
+
+/**
+ * Lock the task row so simultaneous assignment requests serialize. Every
+ * related record is committed together or rolled back together.
+ */
+async function assignTaskAtomically({
+  taskId, companyId, userId, assignedBy, estimatedEffortHours,
+}) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tasks = await client.query(
+      `SELECT id, project_id FROM tasks
+       WHERE id = $1 AND company_id = $2 FOR UPDATE`,
+      [taskId, companyId]
+    );
+    const task = tasks.rows[0];
+    if (!task) throw new Error("TASK_NOT_FOUND");
+
+    const member = await client.query(
+      `SELECT 1 FROM project_members pm
+       JOIN projects p ON p.id = pm.project_id
+       JOIN users u ON u.id = pm.user_id
+       WHERE pm.project_id = $1 AND pm.user_id = $2
+         AND p.company_id = $3 AND u.company_id = $3 LIMIT 1`,
+      [task.project_id, userId, companyId]
+    );
+    if (!member.rows.length) throw new Error("USER_NOT_PROJECT_MEMBER");
+
+    const assigned = await client.query(
+      `SELECT id FROM task_assignments
+       WHERE task_id = $1 AND ended_at IS NULL LIMIT 1`,
+      [taskId]
+    );
+    if (assigned.rows.length) throw new Error("TASK_ALREADY_ASSIGNED");
+
+    const inserted = await client.query(
+      `INSERT INTO task_assignments
+         (task_id, user_id, assigned_by, estimated_effort_hours)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [taskId, userId, assignedBy, estimatedEffortHours ?? null]
+    );
+    const assignment = inserted.rows[0];
+
+    await createNotificationWithClient(client, {
+      recipientId: userId,
+      type: "TASK_ASSIGNED",
+      title: "New task assigned",
+      message: "You have been assigned a task.",
+      resourceType: "TASK",
+      resourceId: taskId,
+    });
+    await createActivityWithClient(client, {
+      companyId, actorId: assignedBy,
+      action: "TASK_ASSIGNED", resourceType: "TASK", resourceId: taskId,
+      metadata: { assignment_id: assignment.id, user_id: userId },
+    });
+    await createAuditLogWithClient(client, {
+      companyId, actorId: assignedBy,
+      action: "TASK_ASSIGNED", resourceType: "TASK", resourceId: taskId,
+      newValues: {
+        assignment_id: assignment.id, assigned_to: userId,
+        estimated_effort_hours: estimatedEffortHours ?? null,
+      },
+    });
+
+    await client.query("COMMIT");
+    return assignment;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    if (error.code === "23505") throw new Error("TASK_ALREADY_ASSIGNED");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function endTaskAssignmentAtomically({ assignmentId, taskId, companyId, endedBy }) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const task = await client.query(
+      `SELECT id FROM tasks WHERE id = $1 AND company_id = $2 FOR UPDATE`,
+      [taskId, companyId]
+    );
+    if (!task.rows.length) throw new Error("ASSIGNMENT_NOT_FOUND");
+
+    const result = await client.query(
+      `UPDATE task_assignments SET ended_at = NOW()
+       WHERE id = $1 AND task_id = $2 AND ended_at IS NULL RETURNING *`,
+      [assignmentId, taskId]
+    );
+    const assignment = result.rows[0];
+    if (!assignment) throw new Error("ASSIGNMENT_NOT_FOUND");
+
+    await createActivityWithClient(client, {
+      companyId, actorId: endedBy,
+      action: "TASK_ASSIGNMENT_ENDED", resourceType: "TASK", resourceId: taskId,
+      metadata: { assignment_id: assignmentId, user_id: assignment.user_id },
+    });
+    await createAuditLogWithClient(client, {
+      companyId, actorId: endedBy,
+      action: "TASK_ASSIGNMENT_ENDED", resourceType: "TASK", resourceId: taskId,
+      oldValues: { assignment_id: assignmentId, assigned_to: assignment.user_id },
+      newValues: { ended_at: assignment.ended_at },
+    });
+
+    await client.query("COMMIT");
+    return assignment;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   createTaskAssignment,
   getActiveTaskAssignment,
   getTaskAssignments,
-  endTaskAssignment
+  endTaskAssignment,
+  assignTaskAtomically,
+  endTaskAssignmentAtomically
 };
