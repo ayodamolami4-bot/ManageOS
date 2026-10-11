@@ -103,7 +103,7 @@ async function createReviewAndApplyDecision({
       JOIN tasks t ON t.id = ts.task_id
       WHERE ts.id = $1
         AND t.company_id = $2
-      FOR UPDATE
+      FOR UPDATE OF t
       `,
       [
         submissionId,
