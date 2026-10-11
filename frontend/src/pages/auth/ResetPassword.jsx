@@ -42,25 +42,13 @@ function ResetPassword() {
     <main className="reset-page">
       <div className="reset-background" aria-hidden="true">
         <div className="reset-background-photo reset-background-green">
-          <img
-            src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1400&q=75"
-            alt=""
-          />
-        </div>
+</div>
 
         <div className="reset-background-photo reset-background-copper">
-          <img
-            src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1400&q=75"
-            alt=""
-          />
-        </div>
+</div>
 
         <div className="reset-background-photo reset-background-lime">
-          <img
-            src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1400&q=75"
-            alt=""
-          />
-        </div>
+</div>
       </div>
 
       <nav className="reset-nav">
