@@ -37,6 +37,15 @@ async function upload(
       error
     );
 
+    if (error.message === "FILE_ACCESS_FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FILE_ACCESS_FORBIDDEN",
+          message: "You do not have access to this resource's files"
+        }
+      });
+    }
+
     if (
       error.message ===
         "FILE_REQUIRED" ||
@@ -115,6 +124,15 @@ async function getCompanyFiles(
       error
     );
 
+    if (error.message === "FILE_ACCESS_FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FILE_ACCESS_FORBIDDEN",
+          message: "You do not have access to this resource's files"
+        }
+      });
+    }
+
     if (
       error.message ===
         "INVALID_RESOURCE_TYPE" ||
@@ -180,6 +198,15 @@ async function getFileById(
       "File retrieval failed:",
       error
     );
+
+    if (error.message === "FILE_ACCESS_FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FILE_ACCESS_FORBIDDEN",
+          message: "You do not have access to this resource's files"
+        }
+      });
+    }
 
     if (
       error.message ===
@@ -266,6 +293,15 @@ async function downloadFile(
       error
     );
 
+    if (error.message === "FILE_ACCESS_FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FILE_ACCESS_FORBIDDEN",
+          message: "You do not have access to this resource's files"
+        }
+      });
+    }
+
     if (
       error.message ===
       "INVALID_FILE_REFERENCE"
@@ -331,6 +367,15 @@ async function removeFile(
       "File deletion failed:",
       error
     );
+
+    if (error.message === "FILE_ACCESS_FORBIDDEN") {
+      return res.status(403).json({
+        error: {
+          code: "FILE_ACCESS_FORBIDDEN",
+          message: "You do not have access to this resource's files"
+        }
+      });
+    }
 
     if (
       error.message ===
