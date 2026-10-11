@@ -16,10 +16,19 @@ async function forgotPassword(req, res) {
         },
       });
     }
-    // Do not reveal the existence of an account through delivery failures.
-    console.error("Password reset request could not be fulfilled.");
-    return res.status(200).json({
-      message: "If an account exists for this address, reset instructions will be sent.",
+    if (error.message === "EMAIL_DELIVERY_FAILED") {
+      // Do not reveal whether an account exists based on delivery failures.
+      console.error("Password recovery provider rejected a delivery request.");
+      return res.status(200).json({
+        message: "If an account exists for this address, reset instructions will be sent.",
+      });
+    }
+    console.error("Password reset request failed with a database or internal error.");
+    return res.status(500).json({
+      error: {
+        code: "PASSWORD_RESET_REQUEST_FAILED",
+        message: "Password recovery is temporarily unavailable. Please try again later.",
+      },
     });
   }
 }
