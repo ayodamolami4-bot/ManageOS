@@ -1,147 +1,216 @@
+import { useEffect, useState } from "react";
+
+import { get, post } from "../../services/api";
+import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
+import "../../components/WorkspaceData.css";
 import "./Updates.css";
 
 function Updates() {
+  const [tasks, setTasks] = useState([]);
+  const [taskId, setTaskId] = useState("");
+  const [reports, setReports] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [reportError, setReportError] = useState("");
+  const [message, setMessage] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [draft, setDraft] = useState({ progressPercentage: "", content: "" });
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [refreshIndex, setRefreshIndex] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    get("/tasks")
+      .then((response) => {
+        if (!active) return;
+        setTasks(Array.isArray(response?.data) ? response.data : []);
+        setErrorMessage("");
+      })
+      .catch((error) => {
+        if (active) setErrorMessage(apiErrorMessage(error));
+      })
+      .finally(() => {
+        if (active) setTasksLoading(false);
+      });
+    return () => { active = false; };
+  }, [refreshIndex]);
+
+  useEffect(() => {
+    let active = true;
+    if (!taskId) {
+      setReports([]);
+      setReportError("");
+      setReportsLoading(false);
+      return () => { active = false; };
+    }
+
+    setReportsLoading(true);
+    setReportError("");
+    get("/tasks/" + taskId + "/reports")
+      .then((response) => {
+        if (active) setReports(Array.isArray(response?.data) ? response.data : []);
+      })
+      .catch((error) => {
+        if (active) setReportError(apiErrorMessage(error));
+      })
+      .finally(() => {
+        if (active) setReportsLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [taskId, refreshIndex]);
+
+  function validate() {
+    const next = {};
+    if (!tasks.some((task) => task.id === taskId)) {
+      next.taskId = "Select an accessible task.";
+    }
+    if (!/^\d{1,3}$/.test(draft.progressPercentage) ||
+        Number(draft.progressPercentage) > 100) {
+      next.progressPercentage = "Enter a whole-number percentage between 0 and 100.";
+    }
+    if (!draft.content.trim()) {
+      next.content = "Explain the progress made on this task.";
+    } else if (draft.content.trim().length > 10000) {
+      next.content = "Maximum 10,000 characters.";
+    }
+    return next;
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    const nextErrors = validate();
+    setErrors(nextErrors);
+    setMessage("");
+    if (Object.keys(nextErrors).length) return;
+
+    setSaving(true);
+    try {
+      const response = await post("/tasks/" + taskId + "/reports", {
+        progressPercentage: Number(draft.progressPercentage),
+        content: draft.content.trim(),
+      });
+      if (response?.data) setReports((items) => [response.data, ...items]);
+      setDraft({ progressPercentage: "", content: "" });
+      setFormOpen(false);
+      setMessage("Progress report posted.");
+    } catch (error) {
+      setErrors(apiFieldErrors(error));
+      setMessage(apiErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="updates-page">
       <header className="updates-header">
         <div>
           <p className="updates-kicker">COMPANY COMMUNICATION</p>
-
-          <h1>
-            Updates
-            <span> keep the company informed.</span>
-          </h1>
-
+          <h1>Updates<span> keep the company informed.</span></h1>
           <p className="updates-intro">
-            Progress reports, important changes, blockers, and requests stay
-            connected to the work they describe so people can understand what
-            is happening without reconstructing the story themselves.
+            Post concrete progress reports and review the written history for work you can access.
+            Blockers and operational requests will be integrated separately.
           </p>
         </div>
-
-        <button type="button" className="updates-create-button">
-          Post update
-        </button>
       </header>
 
       <section className="updates-stream">
-        <div className="updates-section-heading">
+        <div className="workspace-data-row">
           <div>
-            <p className="updates-section-kicker">COMPANY UPDATES</p>
-
-            <h2>
-              Information from the people
-              <span> doing the work.</span>
-            </h2>
+            <p className="updates-section-kicker">TASK PROGRESS</p>
+            <h2>What changed in the work?</h2>
           </div>
-
-          <span className="updates-section-index">01</span>
+          <button type="button" className="workspace-action workspace-action--secondary"
+            onClick={() => { setTasksLoading(true); setRefreshIndex((n) => n + 1); }}>
+            Refresh
+          </button>
         </div>
 
-        <div className="updates-empty-state">
-          <div className="updates-empty-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
+        {tasksLoading && <p className="workspace-feedback" role="status">Loading accessible tasks...</p>}
+        {!tasksLoading && errorMessage && <p className="workspace-feedback" role="alert">{errorMessage}</p>}
 
-          <div>
-            <strong>No updates have been posted.</strong>
-
-            <p>
-              Updates will appear here according to the signed-in user's
-              permissions and company scope.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="updates-types">
-        <div className="updates-section-heading">
-          <div>
-            <p className="updates-section-kicker">WHAT STAYS CONNECTED</p>
-
-            <h2>
-              Communication should have
-              <span> somewhere useful to land.</span>
-            </h2>
-          </div>
-
-          <span>02</span>
-        </div>
-
-        <div className="updates-types-list">
-          <div className="updates-type-row">
-            <span>PROGRESS</span>
-
-            <div>
-              <strong>What has changed since the last update.</strong>
-
-              <p>
-                Written progress can remain attached to the project or work it
-                describes.
-              </p>
+        {!tasksLoading && !errorMessage && (
+          <>
+            <div className="workspace-field">
+              <label htmlFor="updates-task">Select work</label>
+              <select id="updates-task" value={taskId} onChange={(event) => {
+                setTaskId(event.target.value);
+                setMessage("");
+                setErrors({});
+              }}>
+                <option value="">Choose a task to view or report on</option>
+                {tasks.map((task) => (
+                  <option value={task.id} key={task.id}>{task.title}</option>
+                ))}
+              </select>
+              {errors.taskId && <span className="workspace-field-error" role="alert">{errors.taskId}</span>}
             </div>
-          </div>
 
-          <div className="updates-type-row">
-            <span>BLOCKERS</span>
+            {taskId && (
+              <>
+                <button type="button" className="workspace-action" onClick={() => setFormOpen((value) => !value)}>
+                  {formOpen ? "Cancel" : "Post progress update"}
+                </button>
 
-            <div>
-              <strong>What is preventing work from moving forward.</strong>
+                {message && <p role="status" className="workspace-feedback">{message}</p>}
+                {formOpen && (
+                  <form className="workspace-data-form" onSubmit={submit} noValidate>
+                    <div className="workspace-field">
+                      <label htmlFor="updates-percentage">Progress (%)</label>
+                      <input id="updates-percentage" type="number" min="0" max="100" step="1"
+                        disabled={saving} required value={draft.progressPercentage}
+                        aria-invalid={Boolean(errors.progressPercentage)}
+                        onChange={(event) => setDraft((current) => ({
+                          ...current, progressPercentage: event.target.value
+                        }))}
+                      />
+                      {errors.progressPercentage && <span className="workspace-field-error" role="alert">{errors.progressPercentage}</span>}
+                    </div>
+                    <div className="workspace-field workspace-field--wide">
+                      <label htmlFor="updates-content">What has changed?</label>
+                      <textarea id="updates-content" required maxLength={10000} disabled={saving}
+                        value={draft.content} aria-invalid={Boolean(errors.content)}
+                        onChange={(event) => setDraft((current) => ({
+                          ...current, content: event.target.value
+                        }))}
+                      />
+                      {errors.content && <span className="workspace-field-error" role="alert">{errors.content}</span>}
+                    </div>
+                    <div className="workspace-actions">
+                      <button type="submit" className="workspace-action" disabled={saving}>
+                        {saving ? "Posting..." : "Post report"}
+                      </button>
+                    </div>
+                  </form>
+                )}
 
-              <p>
-                Blockers can stay connected to the responsibility or project
-                that needs attention.
-              </p>
-            </div>
-          </div>
+                {reportsLoading && <p role="status" className="workspace-feedback">Loading progress reports...</p>}
+                {!reportsLoading && reportError && <p role="alert" className="workspace-feedback">{reportError}</p>}
+                {!reportsLoading && !reportError && reports.length === 0 && (
+                  <p className="workspace-feedback">No progress reports for this task yet.</p>
+                )}
+                {!reportsLoading && !reportError && (
+                  <div className="workspace-data-list">
+                    {reports.map((report) => (
+                      <article className="workspace-data-item" key={report.id}>
+                        <div className="workspace-data-meta">
+                          <span>Progress: {report.progress_percentage}%</span>
+                          <span>{new Date(report.created_at).toLocaleString()}</span>
+                        </div>
+                        <p>{report.content}</p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
 
-          <div className="updates-type-row">
-            <span>REQUESTS</span>
-
-            <div>
-              <strong>What someone needs from the company or another person.</strong>
-
-              <p>
-                Requests can remain visible in the context of the work they
-                affect.
-              </p>
-            </div>
-          </div>
-
-          <div className="updates-type-row">
-            <span>DECISIONS</span>
-
-            <div>
-              <strong>Important communication around operational changes.</strong>
-
-              <p>
-                Meaningful decisions should remain understandable alongside
-                the work they influence.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="updates-principle">
-        <div className="updates-principle-label">
-          <span>MANAGEOS PRINCIPLE</span>
-        </div>
-
-        <div>
-          <h2>
-            The update should tell
-            <span> the useful part of the story.</span>
-          </h2>
-
-          <p>
-            ManageOS is not intended to become a noisy social feed. The value
-            of an update comes from its relationship to the work, the people
-            responsible for it, and the decisions or results that follow.
-          </p>
-        </div>
+            {!taskId && tasks.length === 0 && <p className="workspace-feedback">No accessible tasks yet.</p>}
+          </>
+        )}
       </section>
     </div>
   );
