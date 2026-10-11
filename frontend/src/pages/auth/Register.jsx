@@ -1,6 +1,71 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { post } from "../../services/api";
+import {
+  apiErrorMessage,
+  apiFieldErrors,
+  validateRegistration,
+} from "../../utils/validation";
 import "./Register.css";
 
 function Register() {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    companyName: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    acceptedTerms: false,
+  });
+  const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function update(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: "" }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    const nextErrors = validateRegistration(form);
+    setErrors(nextErrors);
+    setServerError("");
+
+    if (Object.keys(nextErrors).length) return;
+
+    setSubmitting(true);
+
+    try {
+      await post("/auth/register/company", {
+        companyName: form.companyName.trim(),
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
+
+      navigate("/login", { replace: true, state: { accountCreated: true } });
+    } catch (error) {
+      setErrors(apiFieldErrors(error));
+      setServerError(apiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function fieldError(field) {
+    return errors[field] ? (
+      <span className="register-hint" id={"register-" + field + "-error"} role="alert" style={{ color: "#a44333" }}>
+        {errors[field]}
+      </span>
+    ) : null;
+  }
+
   return (
     <main className="register-page">
       <div className="register-background" aria-hidden="true">
@@ -92,70 +157,128 @@ function Register() {
             </span>
           </div>
 
-          <form className="register-form">
+          <form className="register-form" onSubmit={handleSubmit} noValidate>
             <div className="register-field">
-              <label htmlFor="full-name">Full name</label>
-
+              <label htmlFor="companyName">Company name</label>
               <input
-                id="full-name"
-                name="fullName"
+                id="companyName"
                 type="text"
-                autoComplete="name"
-                placeholder="Your full name"
+                autoComplete="organization"
+                placeholder="Your company"
+                maxLength={200}
+                required
+                disabled={submitting}
+                value={form.companyName}
+                aria-invalid={Boolean(errors.companyName)}
+                onChange={(event) => update("companyName", event.target.value)}
               />
+              {fieldError("companyName")}
+            </div>
+
+            <div className="register-field">
+              <label htmlFor="firstName">First name</label>
+              <input
+                id="firstName"
+                type="text"
+                autoComplete="given-name"
+                placeholder="Your first name"
+                maxLength={100}
+                required
+                disabled={submitting}
+                value={form.firstName}
+                aria-invalid={Boolean(errors.firstName)}
+                onChange={(event) => update("firstName", event.target.value)}
+              />
+              {fieldError("firstName")}
+            </div>
+
+            <div className="register-field">
+              <label htmlFor="lastName">Last name</label>
+              <input
+                id="lastName"
+                type="text"
+                autoComplete="family-name"
+                placeholder="Your last name"
+                maxLength={100}
+                required
+                disabled={submitting}
+                value={form.lastName}
+                aria-invalid={Boolean(errors.lastName)}
+                onChange={(event) => update("lastName", event.target.value)}
+              />
+              {fieldError("lastName")}
             </div>
 
             <div className="register-field">
               <label htmlFor="register-email">Email address</label>
-
               <input
                 id="register-email"
-                name="email"
                 type="email"
                 autoComplete="email"
                 placeholder="you@company.com"
+                maxLength={254}
+                required
+                disabled={submitting}
+                value={form.email}
+                aria-invalid={Boolean(errors.email)}
+                onChange={(event) => update("email", event.target.value)}
               />
+              {fieldError("email")}
             </div>
 
             <div className="register-field">
               <label htmlFor="register-password">Password</label>
-
               <input
                 id="register-password"
-                name="password"
                 type="password"
                 autoComplete="new-password"
                 placeholder="Create a password"
+                minLength={12}
+                maxLength={128}
+                required
+                disabled={submitting}
+                value={form.password}
+                aria-invalid={Boolean(errors.password)}
+                onChange={(event) => update("password", event.target.value)}
               />
-
-              <span className="register-hint">
-                Use at least 8 characters with a letter and a number.
-              </span>
+              <span className="register-hint">Use at least 12 characters.</span>
+              {fieldError("password")}
             </div>
 
             <div className="register-field">
               <label htmlFor="confirm-password">Confirm password</label>
-
               <input
                 id="confirm-password"
-                name="confirmPassword"
                 type="password"
                 autoComplete="new-password"
                 placeholder="Enter your password again"
+                required
+                disabled={submitting}
+                value={form.confirmPassword}
+                aria-invalid={Boolean(errors.confirmPassword)}
+                onChange={(event) => update("confirmPassword", event.target.value)}
               />
+              {fieldError("confirmPassword")}
             </div>
 
             <label className="register-terms">
-              <input type="checkbox" name="terms" />
-
+              <input
+                type="checkbox"
+                checked={form.acceptedTerms}
+                disabled={submitting}
+                onChange={(event) => update("acceptedTerms", event.target.checked)}
+              />
               <span>
                 I agree to the <a href="/terms">ManageOS Terms</a> and{" "}
                 <a href="/privacy">Privacy Policy</a>.
               </span>
             </label>
+            {fieldError("acceptedTerms")}
 
-            <button type="submit" className="register-submit">
-              Create ManageOS account
+            {serverError && <p role="alert" className="register-hint" style={{ color: "#a44333" }}>{serverError}</p>}
+
+            <button type="submit" className="register-submit" disabled={submitting}>
+              {submitting ? "Creating your account..." : "Create ManageOS account"}
               <span aria-hidden="true">→</span>
             </button>
           </form>
