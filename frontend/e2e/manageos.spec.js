@@ -100,6 +100,25 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await expect(projectLink).toBeVisible();
     const projectPath = await projectLink.getAttribute("href");
     expect(projectPath).toMatch(/^\/app\/projects\/[0-9a-f-]+$/i);
+    // The Goals -> Projects promise is backed by a real saved relationship.
+    await owner.goto("/app/goals");
+    await owner.getByRole("button", { name: "Create goal" }).first().click();
+    const goalTitle = `Improve delivery quality ${id}`;
+    await owner.locator("#work-title").fill(goalTitle);
+    await owner.getByRole("button", { name: "Create goal" }).last().click();
+    const goalCard = owner.locator("article.workspace-data-item").filter({
+      has: owner.getByRole("heading", { name: goalTitle }),
+    });
+    await expect(goalCard).toBeVisible();
+    await goalCard.getByRole("button", { name: "Linked projects" }).click();
+    await goalCard.locator('select[id^="goal-project-"]').selectOption({ label: projectName });
+    await goalCard.getByRole("button", { name: "Link project" }).click();
+    await expect(goalCard.getByText("Project linked to this goal.")).toBeVisible();
+
+    await owner.goto(projectPath);
+    await expect(owner.getByRole("heading", { name: "Company goals supported" })).toBeVisible();
+    await expect(owner.getByText(goalTitle)).toBeVisible();
+
     await owner.goto(projectPath);
 
     await owner.locator("#project-link-unit").selectOption({ label: unitName });
