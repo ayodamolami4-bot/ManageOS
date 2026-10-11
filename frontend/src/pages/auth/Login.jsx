@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../../context/AuthContext";
 
 import { post } from "../../services/api";
 import "./Login.css";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,14 +31,21 @@ function Login() {
     try {
       setIsSubmitting(true);
 
-      await post("/auth/login", {
+      const response = await post("/auth/login", {
         email: email.trim(),
         password,
       });
 
-      navigate("/app/overview", {
-        replace: true,
-      });
+      signIn(response.data);
+
+      const from = location.state?.from;
+      const target =
+        from?.pathname === "/app" ||
+        from?.pathname?.startsWith("/app/")
+          ? from.pathname + (from.search || "") + (from.hash || "")
+          : "/app/overview";
+
+      navigate(target, { replace: true });
     } catch (error) {
       const backendMessage =
         error?.data?.error?.message ||
