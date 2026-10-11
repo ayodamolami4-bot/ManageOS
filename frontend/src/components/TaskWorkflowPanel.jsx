@@ -253,7 +253,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             <span>Submissions: {submissions.length}</span>
           </div>
 
-          {!active && members.length > 0 && (
+          {task.can_manage && !active && members.length > 0 && (
             <form className="workspace-data-form" onSubmit={assign} noValidate>
               <div className="workspace-field">
                 <label htmlFor={"assignee-" + task.id}>Assign to project member</label>
@@ -283,7 +283,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             </form>
           )}
 
-          {companyUsers !== null && availableUsers.length > 0 && (
+          {task.can_manage && companyUsers !== null && availableUsers.length > 0 && (
             <form className="workspace-data-form" onSubmit={addMember} noValidate>
               <div className="workspace-field">
                 <label htmlFor={"member-" + task.id}>Add company user to this project</label>
@@ -304,7 +304,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             </form>
           )}
 
-          {active && ["ASSIGNED", "IN_PROGRESS"].includes(task.status) && !currentAssignee && members.length > 1 && (
+          {task.can_manage && active && ["ASSIGNED", "IN_PROGRESS"].includes(task.status) && members.length > 1 && (
             <form className="workspace-data-form" onSubmit={reassign} noValidate>
               <div className="workspace-field">
                 <label htmlFor={"handoff-" + task.id}>Hand off to another project member</label>
@@ -332,7 +332,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             </form>
           )}
 
-          {active && (
+          {task.can_manage && active && (
             <button type="button" className="workspace-action workspace-action--secondary"
               disabled={busy} onClick={endAssignment}>End assignment</button>
           )}
@@ -375,7 +375,7 @@ export default function TaskWorkflowPanel({ task, onTaskChanged }) {
             </section>
           )}
 
-          {task.status === "SUBMITTED" && latestSubmission && !currentAssignee && (
+          {task.can_review && task.status === "SUBMITTED" && latestSubmission && !currentAssignee && (
             <form className="workspace-data-form" onSubmit={submitReview} noValidate>
               <div className="workspace-field">
                 <label htmlFor={"decision-" + task.id}>Review decision</label>
