@@ -48,8 +48,9 @@ async function authenticate(
         `
         UPDATE sessions
         SET last_seen_at = NOW()
-        FROM users
+        FROM users, companies
         WHERE sessions.id = $1
+          AND companies.id = users.company_id
 
           AND users.id =
               sessions.user_id
@@ -70,6 +71,7 @@ async function authenticate(
           sessions.last_seen_at,
           users.id,
           users.company_id,
+          companies.name AS company_name,
           users.first_name,
           users.last_name,
           users.email
@@ -141,6 +143,7 @@ async function authenticate(
       id: user.id,
       company_id:
         user.company_id,
+      company_name: user.company_name,
       first_name:
         user.first_name,
       last_name:
