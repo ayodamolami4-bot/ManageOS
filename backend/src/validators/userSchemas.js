@@ -2,6 +2,9 @@ const {
   z
 } = require("zod");
 
+const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}\s'’.-]*$/u;
+const countryPattern = /^[\p{L}\p{M}][\p{L}\p{M}\s'’.,()\-]*$/u;
+
 const uuidSchema =
   z.string().uuid(
     "Invalid UUID"
@@ -40,7 +43,8 @@ const updateUserSchema =
         .max(
           100,
           "First name is too long"
-        ),
+        )
+        .regex(personNamePattern, "First name must contain letters rather than numbers or symbols"),
 
     lastName:
       z.string()
@@ -52,7 +56,8 @@ const updateUserSchema =
         .max(
           100,
           "Last name is too long"
-        ),
+        )
+        .regex(personNamePattern, "Last name must contain letters rather than numbers or symbols"),
 
     email:
       z.string()
@@ -81,10 +86,9 @@ const updateUserSchema =
     country:
       z.string()
         .trim()
-        .max(
-          100,
-          "Country is too long"
-        )
+        .min(2, "Country must be at least 2 characters")
+        .max(100, "Country is too long")
+        .regex(countryPattern, "Country must contain letters, not numbers")
         .nullable(),
 
     timezone:
