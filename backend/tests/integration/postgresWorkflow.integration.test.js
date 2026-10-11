@@ -53,6 +53,23 @@ async function createEmployee(companyId, ownerId) {
   return employeeId;
 }
 
+async function createManager(companyId, ownerId) {
+  const result = await pool.query(
+    `INSERT INTO users (company_id, first_name, last_name, email, password_hash)
+     VALUES ($1, 'Manager', 'Tester', 'manager-integration@manageos.test', $2)
+     RETURNING id`,
+    [companyId, await hashPassword(secret)]
+  );
+  const managerId = result.rows[0].id;
+  await pool.query(
+    `INSERT INTO user_roles (user_id, role_id, assigned_by)
+     SELECT $1, id, $2 FROM roles
+     WHERE name = 'MANAGER' AND company_id IS NULL AND is_system = TRUE`,
+    [managerId, ownerId]
+  );
+  return managerId;
+}
+
 test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async () => {
   const owner = await newClient();
   const employee = await newClient();
@@ -114,6 +131,43 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       userId: employeeId, organizationUnitId,
     });
     assert.equal(memberAdded.status, 201, JSON.stringify(memberAdded.body));
+    const managerId = await createManager(companyId, ownerId);
+    const linkedUnit = await owner.post(
+      `/api/project-relationships/${projectId}/organization-units`,
+      { organizationUnitId }
+    );
+    assert.equal(linkedUnit.status, 201, JSON.stringify(linkedUnit.body));
+
+    const unauthorizedLead = await owner.post(
+      `/api/project-relationships/${projectId}/leads`, { userId: employeeId }
+    );
+    assert.equal(unauthorizedLead.status, 422, JSON.stringify(unauthorizedLead.body));
+
+    const validLead = await owner.post(
+      `/api/project-relationships/${projectId}/leads`, { userId: managerId }
+    );
+    assert.equal(validLead.status, 201, JSON.stringify(validLead.body));
+    const leads = await employee.get(`/api/project-relationships/${projectId}/leads`);
+    assert.equal(leads.status, 200, JSON.stringify(leads.body));
+    assert.ok(leads.body.data.some((lead) => lead.id === managerId));
+
+    const projectUnits = await employee.get(
+      `/api/project-relationships/${projectId}/organization-units`
+    );
+    assert.equal(projectUnits.status, 200, JSON.stringify(projectUnits.body));
+    assert.ok(projectUnits.body.data.some((unit) => unit.id === organizationUnitId));
+
+    const otherCompanyUnit = await outsider.post("/api/organization-units", {
+      name: "Other company team", type: "Department", parentUnitId: null, description: null,
+    });
+    assert.equal(otherCompanyUnit.status, 201, JSON.stringify(otherCompanyUnit.body));
+
+    const crossCompanyLink = await owner.post(
+      `/api/project-relationships/${projectId}/organization-units`,
+      { organizationUnitId: otherCompanyUnit.body.data.id }
+    );
+    assert.equal(crossCompanyLink.status, 404);
+
     const employeeMemberships = await employee.get("/api/organization-memberships/me");
     assert.equal(employeeMemberships.status, 200, JSON.stringify(employeeMemberships.body));
     assert.ok(employeeMemberships.body.data.some((m) => m.organization_unit_id === organizationUnitId));
