@@ -294,7 +294,8 @@ function Work() {
                   <TaskWorkflowPanel
                     task={task}
                     onTaskChanged={() => {
-                      setLoading(true);
+                      // Refresh data without unmounting the open workflow panel
+                      // and losing confirmation/error messages.
                       setReloadIndex((count) => count + 1);
                     }}
                   />
