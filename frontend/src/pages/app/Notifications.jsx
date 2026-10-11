@@ -72,6 +72,7 @@ function Notifications() {
 
   const unread = items.filter((item) => !item.read_at);
   const typeCount = (prefix) => items.filter((item) => item.type?.toUpperCase().includes(prefix)).length;
+  const reviewCount = items.filter((item) => /REVIEW|SUBMIT|NEEDS_CHANGES|TASK_COMPLETED/.test(item.type || "")).length;
 
   return (
     <div className="notifications-page">
@@ -90,7 +91,7 @@ function Notifications() {
           {[
             ["UNREAD", loading || error ? "—" : unread.length, "Notifications that have not been read"],
             ["ASSIGNMENTS", loading || error ? "—" : typeCount("ASSIGN"), "Notifications about assignments"],
-            ["REVIEWS", loading || error ? "—" : typeCount("REVIEW"), "Review-related notifications"],
+            ["REVIEWS", loading || error ? "—" : reviewCount, "Review and decision notifications"],
             ["REQUESTS", loading || error ? "—" : typeCount("REQUEST"), "Request-related notifications"],
           ].map(([label, count, detail]) => (
             <article className="notifications-state" key={label}>
