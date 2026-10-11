@@ -2,7 +2,8 @@ const {
   createRequest,
   getCompanyRequests,
   getRequestById,
-  updateRequestStatus
+  updateRequestStatus,
+  getRequestRecipients
 } = require("../repositories/requestRepository");
 
 const pool = require("../db/database");
@@ -97,9 +98,14 @@ async function changeRequestStatus(
   return updateRequestStatus(requestId, status, user);
 }
 
+async function listRequestRecipients(user) {
+  return getRequestRecipients(user.company_id, user.id);
+}
+
 module.exports = {
   createNewRequest,
   getRequests,
   getRequest,
-  changeRequestStatus
+  changeRequestStatus,
+  listRequestRecipients
 };
