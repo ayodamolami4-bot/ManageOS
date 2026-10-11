@@ -132,9 +132,11 @@ function Login() {
             </span>
           </div>
 
-          {location.state?.accountCreated && (
+          {(location.state?.accountCreated || location.state?.invitationAccepted) && (
             <p className="login-security-note" role="status">
-              Your company account has been created. Sign in to continue.
+              {location.state?.accountCreated
+                ? "Your company account has been created. Sign in to continue."
+                : "Invitation accepted. Sign in to your company workspace."}
             </p>
           )}
 
