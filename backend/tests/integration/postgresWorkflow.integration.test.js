@@ -150,6 +150,14 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     });
     assert.equal(memberAdded.status, 201, JSON.stringify(memberAdded.body));
     const managerId = await createManager(companyId, ownerId);
+    const rolesResponse = await owner.get("/api/users/roles");
+    assert.equal(rolesResponse.status, 200, JSON.stringify(rolesResponse.body));
+    const managerRole = rolesResponse.body.data.find((role) => role.name === "MANAGER");
+    assert.ok(managerRole?.id);
+    const duplicateCompanyRole = await owner.post(`/api/users/${managerId}/roles`, {
+      roleId: managerRole.id, organizationUnitId: null,
+    });
+    assert.equal(duplicateCompanyRole.status, 409, JSON.stringify(duplicateCompanyRole.body));
     const linkedUnit = await owner.post(
       `/api/project-relationships/${projectId}/organization-units`,
       { organizationUnitId }
