@@ -104,12 +104,15 @@ async function assignTaskAtomically({
   try {
     await client.query("BEGIN");
     const tasks = await client.query(
-      `SELECT id, project_id FROM tasks
+      `SELECT id, project_id, status FROM tasks
        WHERE id = $1 AND company_id = $2 FOR UPDATE`,
       [taskId, companyId]
     );
     const task = tasks.rows[0];
     if (!task) throw new Error("TASK_NOT_FOUND");
+    if (!["ASSIGNED", "IN_PROGRESS"].includes(task.status)) {
+      throw new Error("TASK_NOT_ASSIGNABLE");
+    }
 
     const member = await client.query(
       `SELECT 1 FROM project_members pm
