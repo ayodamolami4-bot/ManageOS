@@ -117,8 +117,23 @@ async function linkProjectOrganizationUnit(
   );
 }
 
+async function getProjectMembers(projectId, currentUser) {
+  await verifyProjectBelongsToCompany(projectId, currentUser.company_id);
+  const result = await pool.query(
+    `SELECT u.id, u.first_name, u.last_name, u.email
+     FROM project_members pm
+     JOIN projects p ON p.id = pm.project_id
+     JOIN users u ON u.id = pm.user_id
+     WHERE pm.project_id = $1 AND p.company_id = $2 AND u.company_id = $2
+     ORDER BY u.first_name, u.last_name`,
+    [projectId, currentUser.company_id]
+  );
+  return result.rows;
+}
+
 module.exports = {
   assignProjectLead,
   addProjectMemberToProject,
-  linkProjectOrganizationUnit
+  linkProjectOrganizationUnit,
+  getProjectMembers
 };
