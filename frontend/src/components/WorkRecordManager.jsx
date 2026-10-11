@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
 
 import { del, get, post, put } from "../services/api";
 import {
@@ -158,6 +159,10 @@ function RecordEditor({ kind, record, onSave, onCancel }) {
 }
 
 export default function WorkRecordManager({ kind }) {
+  const { user } = useAuth();
+  const canCreate = (user?.roles || []).some((role) =>
+    role.name === "OWNER" || (role.name === "MANAGER" && !role.organization_unit_id)
+  );
   const resource = kind === "goal" ? "goals" : "projects";
   const singular = kind === "goal" ? "goal" : "project";
   const [records, setRecords] = useState([]);
@@ -248,7 +253,7 @@ export default function WorkRecordManager({ kind }) {
             {isLoading ? "Loading..." : String(records.length) + " " + resource}
           </p>
         </div>
-        {!formOpen && (
+        {canCreate && !formOpen && (
           <button type="button" className="workspace-action" onClick={() => startEdit()}>
             Create {singular}
           </button>
@@ -299,9 +304,11 @@ export default function WorkRecordManager({ kind }) {
                   {record.description && <p>{record.description}</p>}
                 </div>
                 <div className="workspace-actions">
-                  <button type="button" className="workspace-action workspace-action--secondary" onClick={() => startEdit(record)}>
-                    Edit
-                  </button>
+                  {(kind === "goal" ? canCreate : record.can_create_tasks) && (
+                    <button type="button" className="workspace-action workspace-action--secondary" onClick={() => startEdit(record)}>
+                      Edit
+                    </button>
+                  )}
                   {kind === "goal" && (
                     <button type="button" className="workspace-action workspace-action--secondary"
                       aria-expanded={expandedGoalId === record.id}
@@ -309,7 +316,7 @@ export default function WorkRecordManager({ kind }) {
                       {expandedGoalId === record.id ? "Close linked projects" : "Linked projects"}
                     </button>
                   )}
-                  {kind === "goal" && (
+                  {kind === "goal" && canCreate && (
                     <button
                       type="button"
                       className="workspace-action workspace-action--secondary"
