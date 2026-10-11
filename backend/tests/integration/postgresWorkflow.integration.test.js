@@ -21,6 +21,7 @@ async function newClient() {
       return agent.put(url).set("X-CSRF-Token", this.csrf).send(body);
     },
     get(url) { return agent.get(url); },
+    remove(url) { return agent.delete(url).set("X-CSRF-Token", this.csrf); },
   };
 }
 
@@ -384,6 +385,91 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     );
     assert.equal(approvedRetry.status, 201, JSON.stringify(approvedRetry.body));
     assert.equal(approvedRetry.body.data.task.status, "COMPLETED");
+
+    // Removing a member with active assignments must be rejected.
+    const prematureRemoval = await owner.remove(
+      `/api/project-relationships/${projectId}/members/${employeeId}`
+    );
+    assert.equal(prematureRemoval.status, 409, JSON.stringify(prematureRemoval.body));
+    assert.equal(prematureRemoval.body.error.code, "PROJECT_MEMBER_HAS_ACTIVE_TASKS");
+
+    // Handoff must preserve one active assignment, and create audit history.
+    const handoffTask = await owner.post("/api/tasks", {
+      projectId, milestoneId: null, title: "Reassignment handoff",
+      description: null, priority: "MEDIUM", dueDate: null,
+    });
+    assert.equal(handoffTask.status, 201, JSON.stringify(handoffTask.body));
+    const handoffTaskId = handoffTask.body.data.id;
+    const originalHandoff = await owner.post(
+      `/api/tasks/${handoffTaskId}/assignments`, { userId: employeeId }
+    );
+    assert.equal(originalHandoff.status, 201, JSON.stringify(originalHandoff.body));
+
+    const invalidHandoff = await owner.put(
+      `/api/task-assignments/${originalHandoff.body.data.id}/reassign`,
+      { userId: "not-a-uuid" }
+    );
+    assert.equal(invalidHandoff.status, 400);
+
+    const notProjectMember = await owner.put(
+      `/api/task-assignments/${originalHandoff.body.data.id}/reassign`,
+      { userId: ownerId }
+    );
+    assert.equal(notProjectMember.status, 409);
+    const handoff = await owner.put(
+      `/api/task-assignments/${originalHandoff.body.data.id}/reassign`,
+      { userId: managerId, estimatedEffortHours: 6 }
+    );
+    assert.equal(handoff.status, 200, JSON.stringify(handoff.body));
+    assert.equal(handoff.body.data.user_id, managerId);
+    const handoffState = await pool.query(
+      `SELECT user_id, ended_at FROM task_assignments
+       WHERE task_id = $1 ORDER BY assigned_at ASC`,
+      [handoffTaskId]
+    );
+    assert.equal(handoffState.rows.length, 2);
+    assert.equal(handoffState.rows.filter((row) => row.ended_at === null).length, 1);
+    assert.equal(handoffState.rows.find((row) => row.ended_at === null).user_id, managerId);
+    const handoffAudit = await pool.query(
+      `SELECT 1 FROM audit_logs WHERE company_id = $1
+       AND resource_id = $2 AND action = 'TASK_REASSIGNED'`,
+      [companyId, handoffTaskId]
+    );
+    assert.equal(handoffAudit.rowCount, 1);
+
+    // End remaining employee assignments, then remove the project member.
+    const formerAssignments = await pool.query(
+      `SELECT ta.id FROM task_assignments ta
+       JOIN tasks t ON t.id = ta.task_id
+       WHERE t.project_id = $1 AND ta.user_id = $2 AND ta.ended_at IS NULL`,
+      [projectId, employeeId]
+    );
+    for (const assignment of formerAssignments.rows) {
+      const ended = await owner.put(
+        `/api/task-assignments/${assignment.id}/end`, {}
+      );
+      assert.equal(ended.status, 200, JSON.stringify(ended.body));
+    }
+    const removed = await owner.remove(
+      `/api/project-relationships/${projectId}/members/${employeeId}`
+    );
+    assert.equal(removed.status, 200, JSON.stringify(removed.body));
+    const oldMember = await owner.get(
+      `/api/project-relationships/${projectId}/members`
+    );
+    assert.equal(oldMember.status, 200);
+    assert.ok(!oldMember.body.data.some((member) => member.id === employeeId));
+
+    const forbiddenRemoval = await outsider.remove(
+      `/api/project-relationships/${projectId}/members/${managerId}`
+    );
+    assert.equal(forbiddenRemoval.status, 403);
+
+    const lastManagerRemoval = await owner.remove(
+      `/api/project-relationships/${projectId}/leads/${managerId}`
+    );
+    assert.equal(lastManagerRemoval.status, 409, JSON.stringify(lastManagerRemoval.body));
+    assert.equal(lastManagerRemoval.body.error.code, "LAST_PROJECT_MANAGER");
 
     const operationalRequest = await employee.post("/api/requests", {
       assignedTo: ownerId, type: "ACCESS", title: "Repository access",
