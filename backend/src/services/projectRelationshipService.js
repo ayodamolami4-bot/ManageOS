@@ -1,7 +1,5 @@
 const {
-  addProjectLead,
-  addProjectMember,
-  addProjectOrganizationUnit
+  addProjectRelationshipWithAudit
 } = require("../repositories/projectRelationshipRepository");
 
 const pool = require("../db/database");
@@ -98,7 +96,10 @@ async function assignProjectLead(
     [userId, projectId]
   );
   if (!eligible.rows.length) throw new Error("USER_NOT_ELIGIBLE_TO_LEAD");
-  return await addProjectLead(projectId, userId);
+  return addProjectRelationshipWithAudit({
+    projectId, relatedId: userId, type: "LEAD",
+    companyId: currentUser.company_id, actorId: currentUser.id,
+  });
 }
 
 async function addProjectMemberToProject(
@@ -116,7 +117,10 @@ async function addProjectMemberToProject(
     currentUser.company_id
   );
 
-  return await addProjectMember(projectId, userId);
+  return addProjectRelationshipWithAudit({
+    projectId, relatedId: userId, type: "MEMBER",
+    companyId: currentUser.company_id, actorId: currentUser.id,
+  });
 }
 
 async function linkProjectOrganizationUnit(
@@ -134,10 +138,10 @@ async function linkProjectOrganizationUnit(
     currentUser.company_id
   );
 
-  return await addProjectOrganizationUnit(
-    projectId,
-    organizationUnitId
-  );
+  return addProjectRelationshipWithAudit({
+    projectId, relatedId: organizationUnitId, type: "UNIT",
+    companyId: currentUser.company_id, actorId: currentUser.id,
+  });
 }
 
 async function getProjectMembers(projectId, currentUser) {
