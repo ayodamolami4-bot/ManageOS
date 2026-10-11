@@ -83,28 +83,28 @@ async function createAuditLogWithClient(
   return result.rows[0];
 }
 
-async function getCompanyAuditLogs(companyId) {
-  const result = await pool.query(
-    `
-    SELECT
-      id,
-      company_id,
-      actor_id,
-      action,
-      resource_type,
-      resource_id,
-      old_values,
-      new_values,
-      metadata,
-      created_at
-    FROM audit_logs
-    WHERE company_id = $1
-    ORDER BY created_at DESC
-    `,
-    [companyId]
-  );
+async function getCompanyAuditLogs(companyId, { limit = 30, offset = 0 } = {}) {
+  const [countResult, itemsResult] = await Promise.all([
+    pool.query(
+      "SELECT COUNT(*)::int AS total FROM audit_logs WHERE company_id = $1",
+      [companyId]
+    ),
+    pool.query(
+      `SELECT
+        id, company_id, actor_id, action, resource_type, resource_id,
+        old_values, new_values, metadata, created_at
+       FROM audit_logs
+       WHERE company_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [companyId, limit, offset]
+    )
+  ]);
 
-  return result.rows;
+  return {
+    items: itemsResult.rows,
+    total: countResult.rows[0].total
+  };
 }
 
 async function getAuditLogById(auditLogId, companyId) {
