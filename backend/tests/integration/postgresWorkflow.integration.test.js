@@ -121,6 +121,51 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       [projectId, employeeId]
     );
 
+    // Company's intended Goals -> Projects chain must be real, tenant
+    // scoped, reversible, and audited rather than a UI-only statement.
+    const goalResult = await owner.post("/api/goals", {
+      title: "Improve company delivery",
+      description: "Operationally consistent outcomes",
+      status: "ACTIVE", priority: "HIGH", startDate: null, dueDate: null,
+    });
+    assert.equal(goalResult.status, 201, JSON.stringify(goalResult.body));
+    const goalId = goalResult.body.data.id;
+    const malformedGoalLink = await owner.post(`/api/goals/${goalId}/projects`, {
+      projectId: "invalid-project",
+    });
+    assert.equal(malformedGoalLink.status, 400);
+
+    const outsiderGoalLink = await outsider.post(`/api/goals/${goalId}/projects`, {
+      projectId,
+    });
+    assert.equal(outsiderGoalLink.status, 403);
+
+    const goalLinked = await owner.post(`/api/goals/${goalId}/projects`, { projectId });
+    assert.equal(goalLinked.status, 201, JSON.stringify(goalLinked.body));
+    const duplicateGoalLink = await owner.post(`/api/goals/${goalId}/projects`, { projectId });
+    assert.equal(duplicateGoalLink.status, 409);
+
+    const linkedProjects = await owner.get(`/api/goals/${goalId}/projects`);
+    assert.equal(linkedProjects.status, 200, JSON.stringify(linkedProjects.body));
+    assert.ok(linkedProjects.body.data.some((project) => project.id === projectId));
+    const goalsFromProject = await owner.get(`/api/projects/${projectId}/goals`);
+    assert.equal(goalsFromProject.status, 200, JSON.stringify(goalsFromProject.body));
+    assert.ok(goalsFromProject.body.data.some((goal) => goal.id === goalId));
+
+    const unlinked = await owner.remove(`/api/goals/${goalId}/projects/${projectId}`);
+    assert.equal(unlinked.status, 200, JSON.stringify(unlinked.body));
+    const repeatedUnlink = await owner.remove(`/api/goals/${goalId}/projects/${projectId}`);
+    assert.equal(repeatedUnlink.status, 409);
+    const linkHistory = await pool.query(
+      `SELECT action FROM audit_logs WHERE company_id=$1 AND resource_id=$2
+       AND action IN ('GOAL_PROJECT_LINKED','GOAL_PROJECT_UNLINKED')`,
+      [companyId, goalId]
+    );
+    assert.ok(linkHistory.rows.some((row) => row.action === "GOAL_PROJECT_LINKED"));
+    assert.ok(linkHistory.rows.some((row) => row.action === "GOAL_PROJECT_UNLINKED"));
+
+
+
     const taskResult = await owner.post("/api/tasks", {
       projectId, milestoneId: null, title: "Complete workflow",
       description: "Validate an end-to-end work cycle",
