@@ -1,6 +1,43 @@
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { post } from "../../services/api";
+import { apiErrorMessage } from "../../utils/validation";
 import "./ResetPassword.css";
 
 function ResetPassword() {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") || "";
+  const validToken = /^[a-f0-9]{64}$/i.test(token);
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    if (!validToken) return setError("Your password reset link is invalid or missing.");
+    if (password.length < 12 || password.length > 128) {
+      return setError("Choose a password between 12 and 128 characters.");
+    }
+    if (password !== confirmation) return setError("Passwords do not match.");
+    setSaving(true);
+    try {
+      const response = await post("/auth/reset-password", { token, password });
+      setMessage(response?.message || "Password updated. Sign in with your new password.");
+      setPassword("");
+      setConfirmation("");
+      // Remove the credential from history after it has been consumed.
+      window.history.replaceState(null, "", "/reset-password");
+    } catch (reason) {
+      setError(apiErrorMessage(reason));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <main className="reset-page">
       <div className="reset-background" aria-hidden="true">
@@ -89,7 +126,7 @@ function ResetPassword() {
             <span className="reset-panel-mark">M</span>
           </div>
 
-          <form className="reset-form">
+          <form className="reset-form" onSubmit={submit} noValidate>
             <div className="reset-field">
               <label htmlFor="new-password">New password</label>
 
@@ -99,10 +136,16 @@ function ResetPassword() {
                 type="password"
                 autoComplete="new-password"
                 placeholder="Create a new password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                minLength={12}
+                maxLength={128}
+                required
+                disabled={saving}
               />
 
               <span className="reset-hint">
-                Use at least 8 characters with a letter and a number.
+                Use 12–128 characters. A long, unique passphrase is recommended.
               </span>
             </div>
 
@@ -117,11 +160,20 @@ function ResetPassword() {
                 type="password"
                 autoComplete="new-password"
                 placeholder="Enter the password again"
+                value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)}
+                minLength={12}
+                maxLength={128}
+                required
+                disabled={saving}
               />
             </div>
 
-            <button type="submit" className="reset-submit">
-              Save new password
+            {error && <p className="auth-form-feedback" role="alert">{error}</p>}
+            {message && <p className="auth-form-feedback auth-form-feedback--success" role="status">{message}</p>}
+            {!validToken && !message && <p className="auth-form-feedback" role="alert">Open a valid reset link from your email.</p>}
+            <button type="submit" className="reset-submit" disabled={saving || !validToken || Boolean(message)}>
+              {saving ? "Saving..." : "Save new password"}
               <span aria-hidden="true">→</span>
             </button>
           </form>
