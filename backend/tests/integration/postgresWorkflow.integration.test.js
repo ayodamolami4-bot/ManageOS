@@ -53,7 +53,7 @@ async function createEmployee(companyId, ownerId) {
   return employeeId;
 }
 
-test("PostgreSQL: company workflow, requests and tenant security", async () => {
+test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async () => {
   const owner = await newClient();
   const employee = await newClient();
   const outsider = await newClient();
