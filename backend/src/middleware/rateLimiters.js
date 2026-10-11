@@ -59,7 +59,23 @@ const registrationRateLimiter =
     }
   });
 
+// Keep email recovery requests tightly limited by IP. The service
+// separately throttles requests for each account in PostgreSQL.
+const passwordRecoveryRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    error: {
+      code: "PASSWORD_RECOVERY_RATE_LIMITED",
+      message: "Too many attempts. Please try again later."
+    }
+  }
+});
+
 module.exports = {
   loginRateLimiter,
-  registrationRateLimiter
+  registrationRateLimiter,
+  passwordRecoveryRateLimiter
 };
