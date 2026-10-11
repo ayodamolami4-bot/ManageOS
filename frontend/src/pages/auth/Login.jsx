@@ -132,6 +132,12 @@ function Login() {
             </span>
           </div>
 
+          {location.state?.accountCreated && (
+            <p className="login-security-note" role="status">
+              Your company account has been created. Sign in to continue.
+            </p>
+          )}
+
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="login-field">
               <label htmlFor="email">Email address</label>
@@ -141,6 +147,8 @@ function Login() {
                 name="email"
                 type="email"
                 autoComplete="email"
+                maxLength={254}
+                required
                 placeholder="you@company.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -160,6 +168,8 @@ function Login() {
                 name="password"
                 type="password"
                 autoComplete="current-password"
+                maxLength={128}
+                required
                 placeholder="Enter your password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
