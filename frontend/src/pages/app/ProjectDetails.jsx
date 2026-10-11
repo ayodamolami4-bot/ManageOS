@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { get, post } from "../../services/api";
 import ProjectRelationshipsPanel from "../../components/ProjectRelationshipsPanel";
+import ProjectGoalsPanel from "../../components/ProjectGoalsPanel";
 import { apiErrorMessage, apiFieldErrors, validDate } from "../../utils/validation";
 import "../../components/WorkspaceData.css";
 import "./ProjectDetails.css";
@@ -135,6 +136,10 @@ function ProjectDetails() {
 
       {project && (
         <>
+          <section className="project-details-milestones">
+            <ProjectGoalsPanel projectId={projectId} />
+          </section>
+
           <section className="project-details-milestones">
             <ProjectRelationshipsPanel projectId={projectId} />
           </section>
