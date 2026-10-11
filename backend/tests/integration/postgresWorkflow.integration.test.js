@@ -167,7 +167,16 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     });
     assert.equal(blockerTask.status, 201, JSON.stringify(blockerTask.body));
     const secondTaskId = blockerTask.body.data.id;
-    await owner.post(`/api/tasks/${secondTaskId}/assignments`, { userId: employeeId });
+    const races = await Promise.all([
+      owner.post(`/api/tasks/${secondTaskId}/assignments`, { userId: employeeId }),
+      owner.post(`/api/tasks/${secondTaskId}/assignments`, { userId: employeeId }),
+    ]);
+    assert.deepEqual(races.map((result) => result.status).sort(), [201, 409]);
+    const activeCount = await pool.query(
+      "SELECT COUNT(*)::int AS total FROM task_assignments WHERE task_id=$1 AND ended_at IS NULL",
+      [secondTaskId]
+    );
+    assert.equal(activeCount.rows[0].total, 1);
 
     const blocker = await employee.post(`/api/tasks/${secondTaskId}/blockers`, {
       title: "Access to the repository", description: "Cannot read the team repository.",
@@ -180,6 +189,43 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     const resolvedBlocker = await owner.put(`/api/blockers/${blockerId}/resolve`, {});
     assert.equal(resolvedBlocker.status, 200, JSON.stringify(resolvedBlocker.body));
     assert.equal(resolvedBlocker.body.data.status, "RESOLVED");
+
+    // Rejected work must return to the employee for changes and allow a new submission.
+    const changeTask = await owner.post("/api/tasks", {
+      projectId, milestoneId: null, title: "Review corrections",
+      description: null, priority: "MEDIUM", dueDate: null,
+    });
+    assert.equal(changeTask.status, 201, JSON.stringify(changeTask.body));
+    const thirdTaskId = changeTask.body.data.id;
+    assert.equal((await owner.post(`/api/tasks/${thirdTaskId}/assignments`, { userId: employeeId })).status, 201);
+    assert.equal((await employee.put(`/api/tasks/${thirdTaskId}/status`, { newStatus: "IN_PROGRESS" })).status, 200);
+    const initialSubmission = await employee.post(`/api/tasks/${thirdTaskId}/submissions`, {
+      description: "First attempt at delivery.",
+    });
+    assert.equal(initialSubmission.status, 201, JSON.stringify(initialSubmission.body));
+    const firstSubmissionId = initialSubmission.body.data.submission.id;
+
+    const emptyFeedback = await owner.post(`/api/task-submissions/${firstSubmissionId}/reviews`, {
+      decision: "NEEDS_CHANGES", comment: "  ",
+    });
+    assert.equal(emptyFeedback.status, 400);
+
+    const needsChanges = await owner.post(`/api/task-submissions/${firstSubmissionId}/reviews`, {
+      decision: "NEEDS_CHANGES", comment: "Please add the missing tests.",
+    });
+    assert.equal(needsChanges.status, 201, JSON.stringify(needsChanges.body));
+    assert.equal(needsChanges.body.data.task.status, "IN_PROGRESS");
+
+    const resubmission = await employee.post(`/api/tasks/${thirdTaskId}/submissions`, {
+      description: "Added the missing tests and reran the suite.",
+    });
+    assert.equal(resubmission.status, 201, JSON.stringify(resubmission.body));
+    const approvedRetry = await owner.post(
+      `/api/task-submissions/${resubmission.body.data.submission.id}/reviews`,
+      { decision: "APPROVED", comment: "Accepted" }
+    );
+    assert.equal(approvedRetry.status, 201, JSON.stringify(approvedRetry.body));
+    assert.equal(approvedRetry.body.data.task.status, "COMPLETED");
 
     const operationalRequest = await employee.post("/api/requests", {
       assignedTo: ownerId, type: "ACCESS", title: "Repository access",
