@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const pool = require("../src/db/database");
-const { assignTaskAtomically, endTaskAssignmentAtomically } =
+const { assignTaskAtomically, endTaskAssignmentAtomically, reassignTaskAtomically } =
   require("../src/repositories/taskAssignmentRepository");
 
 const base = {
@@ -20,6 +20,16 @@ function makeClient({ failNotification = false, alreadyAssigned = false, status 
       calls.push(statement);
       if (statement.includes("FROM tasks") && statement.includes("FOR UPDATE")) {
         return { rows: [{ id: base.taskId, project_id: "20ea5be8-c83d-4ca2-a2a3-37d10b79e04a", status }] };
+      }
+      if (statement.includes("SELECT project_id FROM tasks")) {
+        return { rows: [{ project_id: "20ea5be8-c83d-4ca2-a2a3-37d10b79e04a" }] };
+      }
+      if (statement.includes("FROM task_assignments WHERE id")) {
+        return { rows: [{
+          id: "original",
+          task_id: base.taskId,
+          user_id: "c8dffb6f-1c20-48f0-accb-7770bb188789",
+        }] };
       }
       if (statement.includes("FROM project_members")) return { rows: [{}] };
       if (statement.includes("FROM user_roles ur")) return { rows: [{}] };
@@ -102,4 +112,32 @@ test("employee without an eligible organization unit cannot be assigned", async 
   await assert.rejects(assignTaskAtomically(base), /EMPLOYEE_UNIT_MEMBERSHIP_REQUIRED/);
   assert.ok(calls.includes("ROLLBACK"));
   assert.ok(!calls.some((sql) => sql.includes("INSERT INTO task_assignments")));
+});
+
+test("handoff atomically ends old assignment and creates new assignment", async (t) => {
+  const { client, calls } = makeClient();
+  t.mock.method(pool, "connect", async () => client);
+  const assignment = await reassignTaskAtomically({
+    assignmentId: "original", taskId: base.taskId,
+    companyId: base.companyId, newUserId: base.userId,
+    reassignedBy: base.assignedBy, estimatedEffortHours: 8,
+  });
+  assert.equal(assignment.user_id, base.userId);
+  assert.ok(calls.some((sql) => sql.includes("UPDATE task_assignments")));
+  assert.ok(calls.some((sql) => sql.includes("INSERT INTO task_assignments")));
+  assert.ok(calls.some((sql) => sql.includes("INSERT INTO audit_logs")));
+  assert.ok(calls.includes("COMMIT"));
+});
+
+test("failed handoff notification rolls back the old assignment ending", async (t) => {
+  const { client, calls } = makeClient({ failNotification: true });
+  t.mock.method(pool, "connect", async () => client);
+  await assert.rejects(reassignTaskAtomically({
+    assignmentId: "original", taskId: base.taskId,
+    companyId: base.companyId, newUserId: base.userId,
+    reassignedBy: base.assignedBy, estimatedEffortHours: 8,
+  }), /NOTIFICATION_INSERT_FAILED/);
+  assert.ok(calls.some((sql) => sql.includes("UPDATE task_assignments")));
+  assert.ok(calls.includes("ROLLBACK"));
+  assert.ok(!calls.includes("COMMIT"));
 });
