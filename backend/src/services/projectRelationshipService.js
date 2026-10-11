@@ -1,5 +1,6 @@
 const {
-  addProjectRelationshipWithAudit
+  addProjectRelationshipWithAudit,
+  removeProjectRelationshipWithAudit
 } = require("../repositories/projectRelationshipRepository");
 
 const pool = require("../db/database");
@@ -186,11 +187,28 @@ async function getProjectUnitsForCompany(projectId, currentUser) {
   return result.rows;
 }
 
+
+async function removeProjectMember(projectId, userId, currentUser) {
+  return removeProjectRelationshipWithAudit({
+    projectId, userId, type: "MEMBER",
+    companyId: currentUser.company_id, actorId: currentUser.id,
+  });
+}
+
+async function removeProjectLead(projectId, userId, currentUser) {
+  return removeProjectRelationshipWithAudit({
+    projectId, userId, type: "LEAD",
+    companyId: currentUser.company_id, actorId: currentUser.id,
+  });
+}
+
 module.exports = {
   assignProjectLead,
   addProjectMemberToProject,
   linkProjectOrganizationUnit,
   getProjectMembers,
   getProjectLeadsForCompany,
-  getProjectUnitsForCompany
+  getProjectUnitsForCompany,
+  removeProjectMember,
+  removeProjectLead
 };
