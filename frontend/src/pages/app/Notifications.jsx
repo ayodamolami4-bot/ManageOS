@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { get, put } from "../../services/api";
 import { apiErrorMessage } from "../../utils/validation";
+import { notificationDestination } from "../../utils/notificationDestination";
 import "../../components/WorkspaceData.css";
 import "./Notifications.css";
 
@@ -128,10 +130,21 @@ function Notifications() {
                     <h3>{item.title}</h3>
                     <p>{item.message}</p>
                   </div>
-                  {!item.read_at ? (
-                    <button type="button" className="workspace-action workspace-action--secondary"
-                      disabled={busy} onClick={() => markRead(item)}>Mark read</button>
-                  ) : <span className="workspace-data-meta">Read</span>}
+                  <div className="workspace-actions">
+                    {notificationDestination(item) && (
+                      <Link
+                        className="workspace-action"
+                        to={notificationDestination(item)}
+                        onClick={() => { if (!item.read_at) void markRead(item); }}
+                      >
+                        Open related work
+                      </Link>
+                    )}
+                    {!item.read_at ? (
+                      <button type="button" className="workspace-action workspace-action--secondary"
+                        disabled={busy} onClick={() => markRead(item)}>Mark read</button>
+                    ) : <span className="workspace-data-meta">Read</span>}
+                  </div>
                 </div>
               </article>
             ))}
