@@ -1,4 +1,4 @@
-name: Verify private demo R2 storage
+name: Verify private ManageOS Supabase Storage
 
 on:
   workflow_dispatch:
@@ -8,25 +8,24 @@ permissions:
 
 jobs:
   verify:
-    name: Live R2 read-write-delete round trip
+    name: Live Supabase Storage write-read-delete test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      NODE_ENV: production
-      FILE_STORAGE_BACKEND: r2
-      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      R2_API_TOKEN: ${{ secrets.R2_API_TOKEN }}
+      FILE_STORAGE_BACKEND: supabase
+      SUPABASE_URL: ${{ secrets.MANAGEOS_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.MANAGEOS_SUPABASE_SECRET_KEY }}
+      SUPABASE_STORAGE_BUCKET: manageos-files
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Check private storage credentials
+      - name: Confirm private Supabase credentials are configured
         run: |
-          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$R2_BUCKET" ] || [ -z "$R2_API_TOKEN" ]; then
-            echo "Missing private R2 secrets; no live verification attempted." >&2
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SECRET_KEY" ]; then
+            echo "Configure MANAGEOS_SUPABASE_URL and MANAGEOS_SUPABASE_SECRET_KEY as GitHub Actions secrets." >&2
             exit 1
           fi
-      - name: Verify upload, download, delete and confirmed removal
-        run: node backend/scripts/verifyR2.js
+      - name: Exercise live private storage
+        run: node backend/scripts/verifySupabase.js
