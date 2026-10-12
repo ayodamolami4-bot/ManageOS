@@ -7,9 +7,7 @@ import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
 import "../../components/WorkspaceData.css";
 import "./Discussions.css";
 
-function Discussions() {
-  const [searchParams] = useSearchParams();
-  const linkedDiscussionId = searchParams.get("discussionId") || "";
+function DiscussionWorkspace({ linkedDiscussionId }) {
   const { user } = useAuth();
   const [discussions, setDiscussions] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -28,14 +26,6 @@ function Discussions() {
   const [commentsLoading, setCommentsLoading] = useState(() => Boolean(linkedDiscussionId));
   const [posting, setPosting] = useState(false);
   const [commentsRetryIndex, setCommentsRetryIndex] = useState(0);
-
-  useEffect(() => {
-    setSelectedId(linkedDiscussionId);
-    setComments([]);
-    setComment("");
-    setCommentError("");
-    setCommentsLoading(Boolean(linkedDiscussionId));
-  }, [linkedDiscussionId]);
 
   useEffect(() => {
     let active = true;
@@ -66,14 +56,8 @@ function Discussions() {
   useEffect(() => {
     let active = true;
 
-    if (!selectedId) {
-      setCommentsLoading(false);
-      return () => { active = false; };
-    }
+    if (!selectedId) return () => { active = false; };
 
-    setCommentsLoading(true);
-    setComments([]);
-    setCommentError("");
     get("/discussions/" + selectedId + "/comments")
       .then((response) => {
         if (active) setComments(Array.isArray(response?.data) ? response.data : []);
@@ -275,7 +259,11 @@ function Discussions() {
                         {commentError}
                         {!commentsLoading && (
                           <button type="button" className="workspace-action workspace-action--secondary"
-                            onClick={() => setCommentsRetryIndex((n) => n + 1)}>
+                            onClick={() => {
+                              setCommentsLoading(true);
+                              setCommentError("");
+                              setCommentsRetryIndex((n) => n + 1);
+                            }}>
                             Retry replies
                           </button>
                         )}
@@ -310,6 +298,12 @@ function Discussions() {
       </section>
     </div>
   );
+}
+
+function Discussions() {
+  const [searchParams] = useSearchParams();
+  const linkedDiscussionId = searchParams.get("discussionId") || "";
+  return <DiscussionWorkspace key={linkedDiscussionId} linkedDiscussionId={linkedDiscussionId} />;
 }
 
 export default Discussions;
