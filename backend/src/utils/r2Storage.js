@@ -55,6 +55,8 @@ function createR2Store({
     if (response.status === 404 && method === "GET") {
       throw new Error("FILE_STORAGE_NOT_FOUND");
     }
+    // Remote deletion is idempotent: already missing means cleanup succeeded.
+    if (response.status === 404 && method === "DELETE") return null;
     if (!response.ok) {
       throw new Error("FILE_STORAGE_UNAVAILABLE");
     }
@@ -83,6 +85,7 @@ function createR2Store({
     },
     async delete(key) {
       const response = await call("DELETE", key);
+      if (response === null) return; // Already absent; safe to retry.
       const result = await response.json().catch(() => null);
       if (!result?.success) throw new Error("FILE_STORAGE_UNAVAILABLE");
     }
