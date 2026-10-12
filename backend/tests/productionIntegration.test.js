@@ -17,6 +17,11 @@ test("production build serves real Vite assets, browser routes, and existing JSO
   const health = await request(app).get("/api/health");
   assert.equal(health.status, 200);
   assert.equal(health.body.status, "ok");
+  // The free demo must not report ready when its durable file store
+  // lacks credentials (unlike the public liveness check).
+  const ready = await request(app).get("/api/ready");
+  assert.equal(ready.status, 503);
+  assert.equal(ready.body.status, "unavailable");
   const missingApi = await request(app).get("/api/does-not-exist");
   assert.equal(missingApi.status, 404);
   assert.equal(missingApi.body.error.code, "ROUTE_NOT_FOUND");
