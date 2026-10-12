@@ -21,10 +21,11 @@ test("production defaults to Supabase; missing or insecure credentials fail clos
   assert.equal(EXPECTED_BUCKET, "manageos-files");
   assert.throws(() => storageMode({ NODE_ENV: "production", FILE_STORAGE_BACKEND: "local" }), /FILE_STORAGE_NOT_CONFIGURED/);
   assert.throws(() => configuredStore({ NODE_ENV: "production" }), /FILE_STORAGE_NOT_CONFIGURED/);
-  assert.throws(() => createSupabaseStore({ ...config, url: "http://example-ref.supabase.co" }), /FILE_STORAGE_NOT_CONFIGURED/);
-  assert.throws(() => createSupabaseStore({ ...config, url: "https://evil.example.com" }), /FILE_STORAGE_NOT_CONFIGURED/);
-  assert.throws(() => createSupabaseStore({ ...config, bucket: "public" }), /FILE_STORAGE_NOT_CONFIGURED/);
-  assert.throws(() => createSupabaseStore({ ...config, secretKey: "sb_publishable_bad" }), /FILE_STORAGE_NOT_CONFIGURED/);
+  assert.throws(() => createSupabaseStore({ ...config, url: "http://example-ref.supabase.co" }), /SUPABASE_URL_INVALID_PROJECT_ORIGIN/);
+  assert.throws(() => createSupabaseStore({ ...config, url: "https://evil.example.com" }), /SUPABASE_URL_INVALID_PROJECT_ORIGIN/);
+  assert.throws(() => createSupabaseStore({ ...config, url: config.url + "/rest/v1" }), /SUPABASE_URL_INVALID_PROJECT_ORIGIN/);
+  assert.throws(() => createSupabaseStore({ ...config, bucket: "public" }), /SUPABASE_STORAGE_BUCKET_INVALID/);
+  assert.throws(() => createSupabaseStore({ ...config, secretKey: "sb_publishable_bad" }), /SUPABASE_SECRET_KEY_INVALID/);
   assert.ok(createConfiguredSupabaseStore({
     SUPABASE_URL: config.url,
     SUPABASE_SECRET_KEY: config.secretKey,
