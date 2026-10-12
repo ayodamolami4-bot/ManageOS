@@ -140,3 +140,14 @@ test("legacy Supabase 400 NoSuchKey means absent, never blanket-translate bad re
     await assert.rejects(store.get(key), /FILE_STORAGE_UNAVAILABLE/);
   }
 });
+
+test("Supabase legacy missing-object format with statusCode and error is handled", async () => {
+  const store = createSupabaseStore({
+    ...config,
+    fetchImpl: async () => new Response(
+      JSON.stringify({ statusCode: "404", error: "not_found", message: "Object not found" }),
+      { status: 400, headers: { "content-type": "application/json" } }
+    )
+  });
+  await assert.rejects(store.get(key), /FILE_STORAGE_NOT_FOUND/);
+});
