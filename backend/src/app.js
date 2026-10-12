@@ -1,4 +1,6 @@
 const express = require("express");
+const path = require("node:path");
+const { serveFrontend } = require("./middleware/serveFrontend");
 const helmet = require("helmet");
 const cors = require("cors");
 const pool = require("./db/database");
@@ -34,6 +36,7 @@ const app = express();
 
 const frontendOrigin =
   process.env.FRONTEND_URL ||
+  process.env.PUBLIC_APP_URL ||
   "http://localhost:5173";
 
 /*
@@ -159,6 +162,21 @@ app.get(
     }
   }
 );
+
+/*
+ * Readiness checks database access, not just whether Express is listening.
+ * Use this endpoint for deployment health checks.
+ */
+app.get("/api/ready", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ok", database: "connected" });
+  } catch (error) {
+    console.error("Database readiness check failed:", error);
+    res.status(503).json({ status: "unavailable", database: "not connected" });
+  }
+});
 
 /*
  * Authentication.
@@ -340,6 +358,14 @@ app.use(
  * Formal audit history; permission-protected and company-scoped.
  */
 app.use("/api/audit-logs", auditLogRoutes);
+
+/*
+ * Production: the same Express origin serves React and /api.
+ * Keep this after API routers, before JSON 404 handling.
+ */
+if (process.env.NODE_ENV === "production") {
+  serveFrontend(app, path.resolve(__dirname, "../../frontend/dist"));
+}
 
 /*
  * 404 handler.
