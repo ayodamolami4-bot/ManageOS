@@ -19,6 +19,15 @@ services:
         value: "22"
       - key: DATABASE_URL
         sync: false
+      # R2 private file backend. All three values are required to pass /api/ready.
+      - key: FILE_STORAGE_BACKEND
+        value: r2
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_API_TOKEN
+        sync: false
       - key: PUBLIC_APP_URL
         sync: false
       - key: RESEND_API_KEY
