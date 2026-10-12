@@ -17,6 +17,8 @@ On the Render Dashboard after the release blockers are resolved, connect the pri
 - `DATABASE_URL` — managed PostgreSQL connection string with TLS parameters (e.g. `sslmode=require`), never a local database address.
 - `PUBLIC_APP_URL` — exact HTTPS service origin, e.g. `https://manageos-unique.onrender.com`. Do not include a trailing slash.
 - `RESEND_API_KEY`, `RESEND_FROM_EMAIL` — verified sender credentials. Real delivery has not been tested.
+- `FILE_STORAGE_BACKEND=r2` — private durable object storage; production explicitly rejects the local-disk backend.
+- `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_API_TOKEN` — Cloudflare account ID, a **private Standard-class** R2 bucket and a narrowly scoped account API token with object read/write permissions. Keep these only in Render secrets. Never create a public bucket URL or return R2 credentials to the browser.
 - `NODE_ENV=production` is set by the Blueprint. Leave `FRONTEND_URL` unset for a single-origin frontend; the API derives the allowed origin from `PUBLIC_APP_URL`.
 - `VITE_API_BASE_URL` is unnecessary for this deployment; the frontend defaults to `/api`.
 
@@ -24,7 +26,7 @@ The React build needs dev build tools even when `NODE_ENV=production`, hence the
 
 ## Release-blocker gates (P0, in order)
 1. **Production bundle:** Five CI jobs pass, including the production artifact smoke test for HTML deep links and JSON API 404s.
-2. **Durable file storage:** Replace local `backend/storage/files` with private persistent object storage, verify upload/download/delete, signed/private access and recovery after deploy. Existing local-disk storage is not safe on an ephemeral instance.
+2. **Durable file storage:** The code now supports Cloudflare R2 through authenticated server-side REST requests (PUT/GET/DELETE, max 10 MB) and local storage only in development/test. The existing PostgreSQL company/role checks still gate file reads, writes and downloads. Before deployment, configure a private bucket and verify upload/download/delete **against the real provider**, failed request behavior, persistence across a Render sleep/redeploy, usage limits and cleanup of orphaned objects if remote deletion fails. No Cloudflare account has been created or connected.
 3. **Security:** Investigate dependency audit findings, ensure multi-instance rate limiting or a gateway policy, review session/CSRF/tenant authorization; address critical/high actionable vulnerabilities.
 4. **Email:** Verify Resend domain, real invitation/password-reset delivery, bounce/failure behavior and durable retry/outbox policy.
 5. **Database:** Backups + restore drill, migration dry-run on staging, rollback plan, DB connection TLS and least-privilege credentials.
@@ -35,7 +37,7 @@ The React build needs dev build tools even when `NODE_ENV=production`, hence the
 - **Portfolio landing page:** Free static hosting, so the recruiter sees the problem, architecture, engineering evidence, screenshots and a short walkthrough instantly. No paid service required to view your work.
 - **Live demo:** The optional Render Free demo is launched separately, with clear startup messaging and an honest retry mechanism. It may need about a minute after idle; never imply otherwise.
 - **Database:** Prefer free, managed PostgreSQL with usage limits and backup/export discipline; avoid Render Free Postgres for long-lived portfolios because its free databases expire after 30 days.
-- **Storage:** Private free-tier object storage where available; require authenticated downloads and respect quotas. Do not keep file bytes on ephemeral Render disks.
+- **Storage:** The R2 Standard tier currently includes 10 GB-month of storage, 1 million Class A and 10 million Class B operations monthly at no charge; usage beyond its allowances can incur charges. **Do not activate a billing subscription or payment card until you review whether the account can remain free and set protective limits.** The integration is prepared in source code, but provider credentials and real-object tests remain pending. Do not keep files on Render's ephemeral disk.
 - **No unintended charges:** Do not enable a paid plan, create billed resources or sync a Blueprint before reviewing every service plan. If a payment method is present, monitor quota/overages.
 
 ## Cutover checks (after the gates)
@@ -44,4 +46,4 @@ The React build needs dev build tools even when `NODE_ENV=production`, hence the
 - Create and review work, invite employee via real email, reset password, upload/download a file, verify tenant isolation and safe errors.
 - Review health checks and logs; keep automatic deployments disabled until production migration/rollback discipline is established.
 
-**Invariant:** Passing CI means code is test-verified, not that infrastructure, email or persistent files are production-ready.
+**Invariant:** Passing CI means code is test-verified, not that infrastructure, email or persistent files are production-ready. The R2 REST adapter is covered by mocked provider-contract tests; only a real, private-bucket test can close its live-storage gate. File deletion currently performs PostgreSQL metadata deletion first and then attempts remote deletion; a durable cleanup/retry mechanism is still needed to prevent orphan objects if the provider is temporarily unavailable.
