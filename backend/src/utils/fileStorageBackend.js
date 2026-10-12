@@ -1,5 +1,4 @@
 const fs = require("node:fs/promises");
-const crypto = require("node:crypto");
 const {
   moveToPermanentStorage,
   calculateSha256,
@@ -7,7 +6,8 @@ const {
   deleteStoredFile,
   deleteTemporaryFile
 } = require("./fileStorage");
-const { storageMode, configuredStore, MAX_FILE_BYTES } = require("./r2Storage");
+const { MAX_FILE_BYTES } = require("./r2Storage");
+const { storageMode, configuredStore } = require("./storageProvider");
 
 async function persistFile({ tempPath, storageKey, mimeType }) {
   if (storageMode() === "local") {
@@ -25,7 +25,7 @@ async function persistFile({ tempPath, storageKey, mimeType }) {
   // Remote object is safely stored; failing to remove a temporary copy
   // should not roll back the successful upload or create an orphan.
   await deleteTemporaryFile(tempPath).catch((error) => {
-    console.error("Temporary R2 upload cleanup failed:", error);
+    console.error("Temporary cloud upload cleanup failed:", error);
   });
   return checksum;
 }
