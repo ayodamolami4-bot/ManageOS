@@ -116,3 +116,27 @@ test("live bucket metadata must confirm a private bucket before uploading", asyn
   });
   await assert.rejects(publicBucket.assertPrivateBucket(), /FILE_STORAGE_NOT_PRIVATE/);
 });
+
+test("legacy Supabase 400 NoSuchKey means absent, never blanket-translate bad requests", async () => {
+  for (const providerCode of ["NoSuchKey", "not_found"]) {
+    const store = createSupabaseStore({
+      ...config,
+      fetchImpl: async () => new Response(JSON.stringify({ code: providerCode, message: "Object not found" }), {
+        status: 400,
+        headers: { "content-type": "application/json" }
+      })
+    });
+    await assert.rejects(store.get(key), /FILE_STORAGE_NOT_FOUND/);
+  }
+
+  for (const providerCode of ["InvalidJWT", "InvalidKey", "InvalidRequest"]) {
+    const store = createSupabaseStore({
+      ...config,
+      fetchImpl: async () => new Response(JSON.stringify({ code: providerCode, message: "Invalid or unauthorized" }), {
+        status: 400,
+        headers: { "content-type": "application/json" }
+      })
+    });
+    await assert.rejects(store.get(key), /FILE_STORAGE_UNAVAILABLE/);
+  }
+});
