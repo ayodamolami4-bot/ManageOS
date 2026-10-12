@@ -84,6 +84,8 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await expect(owner).toHaveURL(/\/login$/);
     await signIn(owner, ownerEmail);
     await expect(owner.getByText(`Browser Company ${id}`).first()).toBeVisible();
+    await expect(owner.getByRole("link", { name: "Activity", exact: true })).toBeVisible();
+    await expect(owner.getByRole("link", { name: "Audit", exact: true })).toBeVisible();
 
     await owner.goto("/app/organization");
     await owner.getByRole("button", { name: "Add organization unit" }).click();
@@ -168,6 +170,8 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await employee.getByRole("button", { name: "Accept invitation" }).click();
     await expect(employee).toHaveURL(/\/login$/);
     await signIn(employee, employeeEmail);
+    await expect(employee.getByRole("link", { name: "Activity", exact: true })).toHaveCount(0);
+    await expect(employee.getByRole("link", { name: "Audit", exact: true })).toHaveCount(0);
 
     await owner.goto(projectPath);
     await owner.locator("#project-member").selectOption({ label: "Employee Tester" });
