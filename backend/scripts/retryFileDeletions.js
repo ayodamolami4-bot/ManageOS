@@ -1,12 +1,12 @@
 require("dotenv").config();
 const pool = require("../src/db/database");
-const { configuredStore } = require("../src/utils/r2Storage");
+const { configuredStore, storageMode } = require("../src/utils/storageProvider");
 const { processFileDeletions } = require("../src/services/fileDeletionService");
 
 async function main() {
-  // Refuse to run with missing R2 credentials. Never delete from local disks
+  // Refuse to run without private cloud credentials. Never delete from local disks
   // or use a production database accidentally with development storage.
-  if (!process.env.DATABASE_URL || process.env.FILE_STORAGE_BACKEND !== "r2") {
+  if (!process.env.DATABASE_URL || storageMode() === "local") {
     throw new Error("FILE_CLEANUP_CONFIGURATION_REQUIRED");
   }
   configuredStore();
