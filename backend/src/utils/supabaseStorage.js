@@ -82,7 +82,11 @@ function createSupabaseStore({
       }
       if (response.status === 400) {
         const data = await response.json().catch(() => null);
-        if (data?.code === "NoSuchKey" || data?.code === "not_found") {
+        if (
+          data?.code === "NoSuchKey" ||
+          data?.code === "not_found" ||
+          (data?.error === "not_found" && String(data?.statusCode) === "404")
+        ) {
           throw new Error("FILE_STORAGE_NOT_FOUND");
         }
       }
