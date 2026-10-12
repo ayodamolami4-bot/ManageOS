@@ -73,8 +73,19 @@ function createSupabaseStore({
     } catch {
       throw new Error("FILE_STORAGE_UNAVAILABLE");
     }
-    if (method === "GET" && response.status === 404) {
-      throw new Error("FILE_STORAGE_NOT_FOUND");
+    if (method === "GET" && !response.ok) {
+      // Supabase Storage versions return missing files as 404 or, for some
+      // legacy deployments, a 400 response with an explicit NoSuchKey code.
+      // Never confuse auth errors or arbitrary 400s with a missing object.
+      if (response.status === 404) {
+        throw new Error("FILE_STORAGE_NOT_FOUND");
+      }
+      if (response.status === 400) {
+        const data = await response.json().catch(() => null);
+        if (data?.code === "NoSuchKey" || data?.code === "not_found") {
+          throw new Error("FILE_STORAGE_NOT_FOUND");
+        }
+      }
     }
     if (!response.ok) {
       throw new Error("FILE_STORAGE_UNAVAILABLE");
