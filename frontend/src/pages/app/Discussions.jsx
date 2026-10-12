@@ -13,6 +13,7 @@ function Discussions() {
   const { user } = useAuth();
   const [discussions, setDiscussions] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [projectError, setProjectError] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -26,6 +27,15 @@ function Discussions() {
   const [commentError, setCommentError] = useState("");
   const [commentsLoading, setCommentsLoading] = useState(() => Boolean(linkedDiscussionId));
   const [posting, setPosting] = useState(false);
+  const [commentsRetryIndex, setCommentsRetryIndex] = useState(0);
+
+  useEffect(() => {
+    setSelectedId(linkedDiscussionId);
+    setComments([]);
+    setComment("");
+    setCommentError("");
+    setCommentsLoading(Boolean(linkedDiscussionId));
+  }, [linkedDiscussionId]);
 
   useEffect(() => {
     let active = true;
@@ -41,6 +51,9 @@ function Discussions() {
         }
         if (projectResult.status === "fulfilled") {
           setProjects(Array.isArray(projectResult.value?.data) ? projectResult.value.data : []);
+          setProjectError("");
+        } else {
+          setProjectError(apiErrorMessage(projectResult.reason));
         }
       })
       .finally(() => {
@@ -53,8 +66,14 @@ function Discussions() {
   useEffect(() => {
     let active = true;
 
-    if (!selectedId) return () => { active = false; };
+    if (!selectedId) {
+      setCommentsLoading(false);
+      return () => { active = false; };
+    }
 
+    setCommentsLoading(true);
+    setComments([]);
+    setCommentError("");
     get("/discussions/" + selectedId + "/comments")
       .then((response) => {
         if (active) setComments(Array.isArray(response?.data) ? response.data : []);
@@ -67,7 +86,7 @@ function Discussions() {
       });
 
     return () => { active = false; };
-  }, [selectedId]);
+  }, [selectedId, commentsRetryIndex]);
 
   async function create(event) {
     event.preventDefault();
@@ -96,6 +115,9 @@ function Discussions() {
       });
       if (response?.data) {
         setDiscussions((current) => [response.data, ...current]);
+        setSelectedId(response.data.id);
+        setComments([]);
+        setCommentsLoading(true);
       }
       setDraft({ resourceType: "COMPANY", resourceId: "", title: "" });
       setFormOpen(false);
@@ -184,6 +206,7 @@ function Discussions() {
                   {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
                 </select>
                 {errors.resourceId && <span role="alert" className="workspace-field-error">{errors.resourceId}</span>}
+                {projectError && <span role="alert" className="workspace-field-error">Unable to load projects: {projectError}</span>}
               </div>
             )}
 
@@ -247,7 +270,17 @@ function Discussions() {
                 {selectedId === discussion.id && (
                   <div>
                     {commentsLoading && <p role="status" className="workspace-feedback">Loading replies...</p>}
-                    {commentError && <p role="alert" className="workspace-feedback">{commentError}</p>}
+                    {commentError && (
+                      <p role="alert" className="workspace-feedback">
+                        {commentError}
+                        {!commentsLoading && (
+                          <button type="button" className="workspace-action workspace-action--secondary"
+                            onClick={() => setCommentsRetryIndex((n) => n + 1)}>
+                            Retry replies
+                          </button>
+                        )}
+                      </p>
+                    )}
                     {!commentsLoading && comments.length === 0 && !commentError && <p>No replies yet.</p>}
                     {comments.map((entry) => (
                       <div key={entry.id} className="workspace-data-item">
