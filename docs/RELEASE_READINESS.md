@@ -8,14 +8,22 @@ This file is a working engineering checklist, **not** a claim that ManageOS is r
 - Assignment/reassignment, employee submissions, review and rework, blockers/requests, activities and audit.
 - Frontend API integration, PostgreSQL integration, four-role Chromium journey, validation and CI.
 
-## In progress: account recovery and branded product completeness
+## Implemented in draft PR #3 (not yet deployed)
 - Expiring one-use hashed reset tokens and database migration 037.
 - 30-minute link, 5-minute per-account throttle, IP throttle, no existence disclosure in API response.
-- Email provider adapter via Resend REST; verify sender domain and secrets out of source.
+- Email provider adapter via Resend REST implemented; real sender domain, secrets and inbox delivery still need verification.
 - Password reset invalidates all sessions and records a company-scoped audit event.
 - Replace placeholder auth forms with real POST, validation and feedback.
 - Present the **actual tenant name** rather than a generic workspace string.
 - Maintain unique ManageOS editorial design and clear application interaction states, not generic AI UI patterns. See DESIGN_QUALITY_STANDARD.md.
+
+## Production bundle and deploy preparation (October 12)
+- React SPA and Express API can share one origin, including browser deep links and JSON API 404s.
+- Frontend now uses relative `/api` by default, avoiding production localhost URLs and cross-site session cookies.
+- Backend and migrations accept managed PostgreSQL `DATABASE_URL` while local `DB_*` configuration remains available.
+- Database-backed `/api/ready` endpoint for release health checks.
+- Render manual paid-service Blueprint and documented cutover; no production service or database was modified.
+- Production artifact CI smoke job added; see `DEPLOYMENT_RUNBOOK.md` for ordered release gates and status.
 
 ## Required before real customers
 - Configure verified sending domain, HTTPS public URL, Resend API key. Test actual deliverability and recovery failure handling.
