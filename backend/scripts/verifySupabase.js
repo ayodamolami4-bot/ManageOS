@@ -8,6 +8,7 @@ async function main() {
   }
 
   const store = createConfiguredSupabaseStore();
+  await store.assertPrivateBucket();
   const id = crypto.randomUUID();
   const now = new Date();
   const storageKey = [
