@@ -1954,3 +1954,26 @@ button {
     right: -60px;
   }
 }
+
+/* Clear, readable form feedback across branded authentication pages. */
+.auth-form-feedback {
+  margin: 0;
+  color: #a44333;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.auth-form-feedback--success {
+  color: #246047;
+}
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid #3f7890;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

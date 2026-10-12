@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../context/useAuth";
 import { get, post } from "../../services/api";
@@ -6,10 +7,11 @@ import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
 import "../../components/WorkspaceData.css";
 import "./Discussions.css";
 
-function Discussions() {
+function DiscussionWorkspace({ linkedDiscussionId }) {
   const { user } = useAuth();
   const [discussions, setDiscussions] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [projectError, setProjectError] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -17,12 +19,13 @@ function Discussions() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(() => linkedDiscussionId);
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
-  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(() => Boolean(linkedDiscussionId));
   const [posting, setPosting] = useState(false);
+  const [commentsRetryIndex, setCommentsRetryIndex] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -38,6 +41,9 @@ function Discussions() {
         }
         if (projectResult.status === "fulfilled") {
           setProjects(Array.isArray(projectResult.value?.data) ? projectResult.value.data : []);
+          setProjectError("");
+        } else {
+          setProjectError(apiErrorMessage(projectResult.reason));
         }
       })
       .finally(() => {
@@ -64,7 +70,7 @@ function Discussions() {
       });
 
     return () => { active = false; };
-  }, [selectedId]);
+  }, [selectedId, commentsRetryIndex]);
 
   async function create(event) {
     event.preventDefault();
@@ -93,6 +99,9 @@ function Discussions() {
       });
       if (response?.data) {
         setDiscussions((current) => [response.data, ...current]);
+        setSelectedId(response.data.id);
+        setComments([]);
+        setCommentsLoading(true);
       }
       setDraft({ resourceType: "COMPANY", resourceId: "", title: "" });
       setFormOpen(false);
@@ -181,6 +190,7 @@ function Discussions() {
                   {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
                 </select>
                 {errors.resourceId && <span role="alert" className="workspace-field-error">{errors.resourceId}</span>}
+                {projectError && <span role="alert" className="workspace-field-error">Unable to load projects: {projectError}</span>}
               </div>
             )}
 
@@ -204,11 +214,19 @@ function Discussions() {
         {loading && <p className="workspace-feedback" role="status">Loading discussions...</p>}
         {!loading && loadError && <p className="workspace-feedback" role="alert">{loadError}</p>}
         {!loading && !loadError && discussions.length === 0 && <p className="workspace-feedback">No discussions have been started yet.</p>}
+        {!loading && !loadError && linkedDiscussionId &&
+         !discussions.some((discussion) => discussion.id === linkedDiscussionId) && (
+          <p className="workspace-feedback" role="status">
+            The linked discussion is not accessible to your account.
+          </p>
+        )}
 
         {!loading && !loadError && (
           <div className="workspace-data-list">
             {discussions.map((discussion) => (
-              <article className="workspace-data-item" key={discussion.id}>
+              <article className="workspace-data-item" key={discussion.id}
+                id={"discussion-" + discussion.id}
+                style={discussion.id === linkedDiscussionId ? { borderLeft: "4px solid var(--copper)" } : undefined}>
                 <div className="workspace-data-row">
                   <div>
                     <h3>{discussion.title}</h3>
@@ -236,7 +254,21 @@ function Discussions() {
                 {selectedId === discussion.id && (
                   <div>
                     {commentsLoading && <p role="status" className="workspace-feedback">Loading replies...</p>}
-                    {commentError && <p role="alert" className="workspace-feedback">{commentError}</p>}
+                    {commentError && (
+                      <p role="alert" className="workspace-feedback">
+                        {commentError}
+                        {!commentsLoading && (
+                          <button type="button" className="workspace-action workspace-action--secondary"
+                            onClick={() => {
+                              setCommentsLoading(true);
+                              setCommentError("");
+                              setCommentsRetryIndex((n) => n + 1);
+                            }}>
+                            Retry replies
+                          </button>
+                        )}
+                      </p>
+                    )}
                     {!commentsLoading && comments.length === 0 && !commentError && <p>No replies yet.</p>}
                     {comments.map((entry) => (
                       <div key={entry.id} className="workspace-data-item">
@@ -266,6 +298,12 @@ function Discussions() {
       </section>
     </div>
   );
+}
+
+function Discussions() {
+  const [searchParams] = useSearchParams();
+  const linkedDiscussionId = searchParams.get("discussionId") || "";
+  return <DiscussionWorkspace key={linkedDiscussionId} linkedDiscussionId={linkedDiscussionId} />;
 }
 
 export default Discussions;

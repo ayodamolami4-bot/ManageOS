@@ -48,8 +48,9 @@ async function authenticate(
         `
         UPDATE sessions
         SET last_seen_at = NOW()
-        FROM users
+        FROM users, companies
         WHERE sessions.id = $1
+          AND companies.id = users.company_id
 
           AND users.id =
               sessions.user_id
@@ -70,9 +71,29 @@ async function authenticate(
           sessions.last_seen_at,
           users.id,
           users.company_id,
+          companies.name AS company_name,
           users.first_name,
           users.last_name,
-          users.email
+          users.email,
+          (
+                      SELECT COALESCE(
+                        jsonb_agg(jsonb_build_object(
+                          'name', r.name,
+                          'organization_unit_id', ur.organization_unit_id
+                        ) ORDER BY r.name),
+                        '[]'::jsonb
+                      )
+                      FROM user_roles ur
+                      JOIN roles r ON r.id = ur.role_id
+                      WHERE ur.user_id = users.id
+                    ) AS roles,
+          (
+            SELECT COALESCE(jsonb_agg(DISTINCT p.name ORDER BY p.name), '[]'::jsonb)
+            FROM user_roles ur
+            JOIN role_permissions rp ON rp.role_id = ur.role_id
+            JOIN permissions p ON p.id = rp.permission_id
+            WHERE ur.user_id = users.id
+          ) AS permissions
         `,
         [
           sessionId
@@ -141,10 +162,13 @@ async function authenticate(
       id: user.id,
       company_id:
         user.company_id,
+      company_name: user.company_name,
       first_name:
         user.first_name,
       last_name:
         user.last_name,
+      roles: user.roles || [],
+      permissions: user.permissions || [],
       email:
         user.email
     };

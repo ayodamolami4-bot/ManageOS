@@ -1,0 +1,39 @@
+name: ManageOS demo database migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type APPLY to migrate the isolated ManageOS demo database"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-demo:
+    if: ${{ inputs.confirmation == 'APPLY' }}
+    name: Manually migrate isolated demo PostgreSQL
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.MANAGEOS_DEMO_DATABASE_URL }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Validate database configuration
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "MANAGEOS_DEMO_DATABASE_URL secret is required" >&2
+            exit 1
+          fi
+      - name: Apply approved schema migrations
+        run: npm run migrate

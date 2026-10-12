@@ -78,6 +78,12 @@ async function createTask(
       });
     }
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You cannot manage tasks in this project" }
+      });
+    }
+
     res.status(500).json({
       error: {
         code:
@@ -236,6 +242,12 @@ async function updateTask(
       });
     }
 
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You cannot manage tasks in this project" }
+      });
+    }
+
     res.status(500).json({
       error: {
         code:
@@ -279,6 +291,12 @@ async function deleteTask(
           message:
             "Task not found"
         }
+      });
+    }
+
+    if (error.message === "FORBIDDEN") {
+      return res.status(403).json({
+        error: { code: "FORBIDDEN", message: "You cannot manage tasks in this project" }
       });
     }
 

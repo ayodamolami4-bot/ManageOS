@@ -9,7 +9,8 @@ const {
 const {
   canCreateTask,
   canViewTask,
-  canManageTask
+  canManageTask,
+  canReviewTask
 } = require("./authorizationService");
 
 const pool =
@@ -104,7 +105,7 @@ async function createNewTask(
     projectId
   );
 
-  return await createTask({
+  const task = await createTask({
     companyId:
       user.company_id,
 
@@ -131,6 +132,7 @@ async function createNewTask(
     createdBy:
       user.id
   });
+  return { ...task, can_manage: true, can_review: await canReviewTask(user, task.id) };
 }
 
 async function getCompanyTasks(
@@ -142,23 +144,21 @@ async function getCompanyTasks(
     );
 
   const visibleTasks = [];
-
-  for (
-    const task of tasks
-  ) {
-    const allowed =
-      await canViewTask(
-        user,
-        task.id
-      );
-
-    if (allowed) {
-      visibleTasks.push(
-        task
-      );
+  // Management/review permissions are project scoped. Cache once per
+  // project so the UI can reliably hide unauthorized actions.
+  const permissions = new Map();
+  for (const task of tasks) {
+    if (!(await canViewTask(user, task.id))) continue;
+    let flags = permissions.get(task.project_id);
+    if (!flags) {
+      flags = {
+        can_manage: await canManageTask(user, task.id),
+        can_review: await canReviewTask(user, task.id),
+      };
+      permissions.set(task.project_id, flags);
     }
+    visibleTasks.push({ ...task, ...flags });
   }
-
   return visibleTasks;
 }
 
@@ -190,7 +190,11 @@ async function getTask(
     );
   }
 
-  return task;
+  return {
+    ...task,
+    can_manage: await canManageTask(user, task.id),
+    can_review: await canReviewTask(user, task.id),
+  };
 }
 
 async function updateExistingTask(

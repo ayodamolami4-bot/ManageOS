@@ -18,29 +18,18 @@ async function runMigrations() {
     "DB_NAME"
   ];
 
-  for (
-    const variable of
-    requiredEnvironmentVariables
-  ) {
-    if (
-      !process.env[variable]
-    ) {
-      throw new Error(
-        `Missing required environment variable: ${variable}`
-      );
+  if (!process.env.DATABASE_URL) {
+    for (const variable of requiredEnvironmentVariables) {
+      if (!process.env[variable]) {
+        throw new Error(`Missing required environment variable: ${variable}`);
+      }
     }
   }
 
-  const databaseUrl =
-    `postgres://${encodeURIComponent(
-      process.env.DB_USER
-    )}:` +
-    `${encodeURIComponent(
-      process.env.DB_PASSWORD
-    )}@` +
-    `${process.env.DB_HOST}:` +
-    `${process.env.DB_PORT}/` +
-    `${process.env.DB_NAME}`;
+  const databaseUrl = process.env.DATABASE_URL ||
+    `postgres://${encodeURIComponent(process.env.DB_USER)}:` +
+    `${encodeURIComponent(process.env.DB_PASSWORD)}@` +
+    `${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
 
   const migrationsDirectory =
     path.resolve(

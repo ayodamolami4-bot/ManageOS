@@ -1,0 +1,36 @@
+# Budget-safe Render Blueprint for a future non-production portfolio demo.
+# Does not create a service until explicitly connected/synced in Render.
+# Free web service: sleeps after 15 minutes of inactivity; cold starts are expected.
+services:
+  - type: web
+    name: manageos
+    runtime: node
+    plan: free
+    buildCommand: npm ci --prefix backend && npm ci --include=dev --prefix frontend && npm run build --prefix frontend
+    # Render pre-deploy commands are paid-only. Apply migrations separately
+    # using a controlled, manually triggered GitHub workflow before deployment.
+    startCommand: npm start --prefix backend
+    healthCheckPath: /api/ready
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
+      # Supabase private Storage bucket; configure secrets only in Render.
+      - key: FILE_STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: manageos-files
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false

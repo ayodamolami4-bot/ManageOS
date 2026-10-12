@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { get, post } from "../../services/api";
+import { get, post, put } from "../../services/api";
 import ProjectRelationshipsPanel from "../../components/ProjectRelationshipsPanel";
+import ProjectGoalsPanel from "../../components/ProjectGoalsPanel";
 import { apiErrorMessage, apiFieldErrors, validDate } from "../../utils/validation";
 import "../../components/WorkspaceData.css";
 import "./ProjectDetails.css";
@@ -20,6 +21,10 @@ function ProjectDetails() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [editDraft, setEditDraft] = useState({ name: "", description: "", status: "PLANNED", dueDate: "" });
+  const [editErrors, setEditErrors] = useState({});
+  const [editingBusy, setEditingBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -102,6 +107,62 @@ function ProjectDetails() {
     }
   }
 
+  function startEditing(milestone) {
+    setEditingId(milestone.id);
+    setEditDraft({
+      name: milestone.name,
+      description: milestone.description || "",
+      status: milestone.status,
+      dueDate: milestone.due_date ? milestone.due_date.slice(0, 10) : ""
+    });
+    setEditErrors({});
+    setNotice("");
+  }
+
+  function updateEdit(field, value) {
+    setEditDraft((current) => ({ ...current, [field]: value }));
+    setEditErrors((current) => ({ ...current, [field]: "" }));
+  }
+
+  async function saveMilestone(event) {
+    event.preventDefault();
+    if (!editingId || editingBusy || !project?.can_manage) return;
+    const nextErrors = {};
+    if (!editDraft.name.trim()) nextErrors.name = "Milestone name is required.";
+    else if (editDraft.name.trim().length > 255) nextErrors.name = "Name is too long.";
+    if (editDraft.description.length > 10000) nextErrors.description = "Description is too long.";
+    if (!["PLANNED", "IN_PROGRESS", "COMPLETED"].includes(editDraft.status)) {
+      nextErrors.status = "Choose a valid status.";
+    }
+    if (editDraft.dueDate && !validDate(editDraft.dueDate)) {
+      nextErrors.dueDate = "Enter a valid calendar date.";
+    }
+    setEditErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+
+    setEditingBusy(true);
+    setNotice("");
+    try {
+      const response = await put("/projects/" + projectId + "/milestones/" + editingId, {
+        name: editDraft.name.trim(),
+        description: editDraft.description.trim() || null,
+        status: editDraft.status,
+        dueDate: editDraft.dueDate || null
+      });
+      if (!response?.data) throw new Error("Milestone update returned no data.");
+      setMilestones((current) => current.map((milestone) =>
+        milestone.id === editingId ? response.data : milestone
+      ));
+      setEditingId("");
+      setNotice("Milestone updated.");
+    } catch (error) {
+      setEditErrors(apiFieldErrors(error));
+      setNotice(apiErrorMessage(error));
+    } finally {
+      setEditingBusy(false);
+    }
+  }
+
   return (
     <div className="project-details-page">
       <header className="project-details-header">
@@ -136,7 +197,11 @@ function ProjectDetails() {
       {project && (
         <>
           <section className="project-details-milestones">
-            <ProjectRelationshipsPanel projectId={projectId} />
+            <ProjectGoalsPanel projectId={projectId} />
+          </section>
+
+          <section className="project-details-milestones">
+            <ProjectRelationshipsPanel projectId={projectId} canManage={Boolean(project.can_manage)} />
           </section>
 
           <section className="project-details-milestones">
@@ -145,9 +210,11 @@ function ProjectDetails() {
                 <p className="project-details-section-kicker">MILESTONES</p>
                 <h2>Important stages of the <span>project.</span></h2>
               </div>
-              <button className="workspace-action" type="button" onClick={() => setNewMilestoneOpen((open) => !open)}>
-                {newMilestoneOpen ? "Cancel" : "Add milestone"}
-              </button>
+              {project.can_manage && (
+                <button className="workspace-action" type="button" onClick={() => setNewMilestoneOpen((open) => !open)}>
+                  {newMilestoneOpen ? "Cancel" : "Add milestone"}
+                </button>
+              )}
             </div>
 
             {notice && <p className="workspace-feedback" role="status">{notice}</p>}
@@ -201,12 +268,69 @@ function ProjectDetails() {
               <div className="workspace-data-list">
                 {milestones.map((milestone) => (
                   <article className="workspace-data-item" key={milestone.id}>
-                    <h3>{milestone.name}</h3>
-                    <div className="workspace-data-meta">
-                      <span>Status: {milestone.status?.replaceAll("_", " ")}</span>
-                      {milestone.due_date && <span>Due: {milestone.due_date.slice(0, 10)}</span>}
+                    <div className="workspace-data-row">
+                      <div>
+                        <h3>{milestone.name}</h3>
+                        <div className="workspace-data-meta">
+                          <span>Status: {milestone.status?.replaceAll("_", " ")}</span>
+                          {milestone.due_date && <span>Due: {milestone.due_date.slice(0, 10)}</span>}
+                        </div>
+                        {milestone.description && <p>{milestone.description}</p>}
+                      </div>
+                      {project.can_manage && (
+                        <button type="button" className="workspace-action workspace-action--secondary"
+                          disabled={editingBusy} aria-expanded={editingId === milestone.id}
+                          onClick={() => {
+                            if (editingId === milestone.id) setEditingId("");
+                            else startEditing(milestone);
+                          }}>
+                          {editingId === milestone.id ? "Cancel edit" : "Edit milestone"}
+                        </button>
+                      )}
                     </div>
-                    {milestone.description && <p>{milestone.description}</p>}
+                    {project.can_manage && editingId === milestone.id && (
+                      <form className="workspace-data-form" onSubmit={saveMilestone} noValidate>
+                        <div className="workspace-field workspace-field--wide">
+                          <label htmlFor="edit-milestone-name">Milestone name</label>
+                          <input id="edit-milestone-name" value={editDraft.name} required maxLength={255}
+                            disabled={editingBusy} aria-invalid={Boolean(editErrors.name)}
+                            onChange={(event) => updateEdit("name", event.target.value)}
+                          />
+                          {editErrors.name && <span className="workspace-field-error" role="alert">{editErrors.name}</span>}
+                        </div>
+                        <div className="workspace-field workspace-field--wide">
+                          <label htmlFor="edit-milestone-description">Description (optional)</label>
+                          <textarea id="edit-milestone-description" maxLength={10000} value={editDraft.description}
+                            disabled={editingBusy} aria-invalid={Boolean(editErrors.description)}
+                            onChange={(event) => updateEdit("description", event.target.value)}
+                          />
+                          {editErrors.description && <span className="workspace-field-error" role="alert">{editErrors.description}</span>}
+                        </div>
+                        <div className="workspace-field">
+                          <label htmlFor="edit-milestone-status">Status</label>
+                          <select id="edit-milestone-status" value={editDraft.status} disabled={editingBusy}
+                            onChange={(event) => updateEdit("status", event.target.value)}>
+                            <option value="PLANNED">Planned</option>
+                            <option value="IN_PROGRESS">In progress</option>
+                            <option value="COMPLETED">Completed</option>
+                          </select>
+                          {editErrors.status && <span className="workspace-field-error" role="alert">{editErrors.status}</span>}
+                        </div>
+                        <div className="workspace-field">
+                          <label htmlFor="edit-milestone-date">Due date (optional)</label>
+                          <input id="edit-milestone-date" type="date" value={editDraft.dueDate}
+                            disabled={editingBusy} aria-invalid={Boolean(editErrors.dueDate)}
+                            onChange={(event) => updateEdit("dueDate", event.target.value)}
+                          />
+                          {editErrors.dueDate && <span className="workspace-field-error" role="alert">{editErrors.dueDate}</span>}
+                        </div>
+                        <div className="workspace-actions">
+                          <button type="submit" className="workspace-action" disabled={editingBusy}>
+                            {editingBusy ? "Saving..." : "Save milestone"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </article>
                 ))}
               </div>

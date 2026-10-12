@@ -88,11 +88,12 @@ async function createScopedTeamLead(companyId, ownerId, unitId) {
   return leadId;
 }
 
-test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async () => {
+test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async (t) => {
   const owner = await newClient();
   const employee = await newClient();
   const outsider = await newClient();
   const scopedLead = await newClient();
+  const scopedManager = await newClient();
 
   try {
     const { companyId, userId: ownerId } = await registerAndLogin(
@@ -120,6 +121,51 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
       [projectId, employeeId]
     );
+
+    // Company's intended Goals -> Projects chain must be real, tenant
+    // scoped, reversible, and audited rather than a UI-only statement.
+    const goalResult = await owner.post("/api/goals", {
+      title: "Improve company delivery",
+      description: "Operationally consistent outcomes",
+      status: "ACTIVE", priority: "HIGH", startDate: null, dueDate: null,
+    });
+    assert.equal(goalResult.status, 201, JSON.stringify(goalResult.body));
+    const goalId = goalResult.body.data.id;
+    const malformedGoalLink = await owner.post(`/api/goals/${goalId}/projects`, {
+      projectId: "invalid-project",
+    });
+    assert.equal(malformedGoalLink.status, 400);
+
+    const outsiderGoalLink = await outsider.post(`/api/goals/${goalId}/projects`, {
+      projectId,
+    });
+    assert.equal(outsiderGoalLink.status, 403);
+
+    const goalLinked = await owner.post(`/api/goals/${goalId}/projects`, { projectId });
+    assert.equal(goalLinked.status, 201, JSON.stringify(goalLinked.body));
+    const duplicateGoalLink = await owner.post(`/api/goals/${goalId}/projects`, { projectId });
+    assert.equal(duplicateGoalLink.status, 409);
+
+    const linkedProjects = await owner.get(`/api/goals/${goalId}/projects`);
+    assert.equal(linkedProjects.status, 200, JSON.stringify(linkedProjects.body));
+    assert.ok(linkedProjects.body.data.some((project) => project.id === projectId));
+    const goalsFromProject = await owner.get(`/api/projects/${projectId}/goals`);
+    assert.equal(goalsFromProject.status, 200, JSON.stringify(goalsFromProject.body));
+    assert.ok(goalsFromProject.body.data.some((goal) => goal.id === goalId));
+
+    const unlinked = await owner.remove(`/api/goals/${goalId}/projects/${projectId}`);
+    assert.equal(unlinked.status, 200, JSON.stringify(unlinked.body));
+    const repeatedUnlink = await owner.remove(`/api/goals/${goalId}/projects/${projectId}`);
+    assert.equal(repeatedUnlink.status, 409);
+    const linkHistory = await pool.query(
+      `SELECT action FROM audit_logs WHERE company_id=$1 AND resource_id=$2
+       AND action IN ('GOAL_PROJECT_LINKED','GOAL_PROJECT_UNLINKED')`,
+      [companyId, goalId]
+    );
+    assert.ok(linkHistory.rows.some((row) => row.action === "GOAL_PROJECT_LINKED"));
+    assert.ok(linkHistory.rows.some((row) => row.action === "GOAL_PROJECT_UNLINKED"));
+
+
 
     const taskResult = await owner.post("/api/tasks", {
       projectId, milestoneId: null, title: "Complete workflow",
@@ -150,6 +196,30 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       userId: employeeId, organizationUnitId,
     });
     assert.equal(memberAdded.status, 201, JSON.stringify(memberAdded.body));
+    // Scoped managers may manage their existing unit, but must not
+    // create arbitrary company-wide units just because they hold a role.
+    const scopedManagerEmail = "scoped-manager-integration@manageos.test";
+    const managerPasswordHash = await hashPassword(secret);
+    const scopedManagerUser = await pool.query(
+      `INSERT INTO users (company_id, first_name, last_name, email, password_hash)
+       VALUES ($1, 'Scoped', 'Manager', $2, $3) RETURNING id`,
+      [companyId, scopedManagerEmail, managerPasswordHash]
+    );
+    await pool.query(
+      `INSERT INTO user_roles (user_id, role_id, organization_unit_id, assigned_by)
+       SELECT $1, r.id, $2, $3 FROM roles r
+       WHERE r.name = 'MANAGER' AND r.company_id IS NULL AND r.is_system = TRUE`,
+      [scopedManagerUser.rows[0].id, organizationUnitId, ownerId]
+    );
+    const scopedLogin = await scopedManager.post("/api/auth/login", {
+      email: scopedManagerEmail, password: secret,
+    });
+    assert.equal(scopedLogin.status, 200, JSON.stringify(scopedLogin.body));
+    const unauthorizedUnit = await scopedManager.post("/api/organization-units", {
+      name: "Unauthorized company unit", type: "Department", parentUnitId: null, description: null,
+    });
+    assert.equal(unauthorizedUnit.status, 403, JSON.stringify(unauthorizedUnit.body));
+
     const managerId = await createManager(companyId, ownerId);
     const rolesResponse = await owner.get("/api/users/roles");
     assert.equal(rolesResponse.status, 200, JSON.stringify(rolesResponse.body));
@@ -256,6 +326,17 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       `/api/organization-memberships/user/${employeeId}`
     );
     assert.ok([403, 404].includes(crossCompanyMembership.status));
+
+    const employeeVisibleTasks = await employee.get("/api/tasks");
+    assert.equal(employeeVisibleTasks.status, 200, JSON.stringify(employeeVisibleTasks.body));
+    const employeeTask = employeeVisibleTasks.body.data.find((task) => task.id === taskId);
+    assert.equal(employeeTask?.can_manage, false);
+    assert.equal(employeeTask?.can_review, false);
+    const ownerVisibleTasks = await owner.get("/api/tasks");
+    assert.equal(ownerVisibleTasks.status, 200, JSON.stringify(ownerVisibleTasks.body));
+    const ownerTask = ownerVisibleTasks.body.data.find((task) => task.id === taskId);
+    assert.equal(ownerTask?.can_manage, true);
+    assert.equal(ownerTask?.can_review, true);
 
     const assigned = await owner.post(`/api/tasks/${taskId}/assignments`, {
       userId: employeeId, estimatedEffortHours: 4.5,
@@ -507,6 +588,18 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     assert.ok(removalAudit.rows.some((row) => row.action === "PROJECT_MEMBER_REMOVED"));
 
 
+    // Any authenticated employee can choose a colleague when requesting
+    // operational help without permission to view full company profiles.
+    const requestRecipients = await employee.get("/api/requests/recipients");
+    assert.equal(requestRecipients.status, 200, JSON.stringify(requestRecipients.body));
+    assert.ok(requestRecipients.body.data.some((recipient) => recipient.id === ownerId));
+    assert.ok(requestRecipients.body.data.some((recipient) => recipient.id === managerId));
+    assert.ok(requestRecipients.body.data.every((recipient) => !("email" in recipient)));
+    assert.ok(requestRecipients.body.data.every((recipient) => !("password_hash" in recipient)));
+    const outsiderRecipientList = await outsider.get("/api/requests/recipients");
+    assert.equal(outsiderRecipientList.status, 200);
+    assert.ok(!outsiderRecipientList.body.data.some((recipient) => recipient.id === ownerId));
+
     const operationalRequest = await employee.post("/api/requests", {
       assignedTo: ownerId, type: "ACCESS", title: "Repository access",
       description: "Please add my account to the project.",
@@ -533,6 +626,142 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
       status: "IN_PROGRESS",
     });
     assert.equal(staleChange.status, 409);
+
+    // Account recovery: actual HTTP endpoints and external delivery stub.
+    // No reset secrets are logged, committed or exposed by the API.
+    const previousEnv = {
+      key: process.env.RESEND_API_KEY,
+      from: process.env.RESEND_FROM_EMAIL,
+      origin: process.env.PUBLIC_APP_URL,
+    };
+    process.env.RESEND_API_KEY = "re_ci_test_only";
+    process.env.RESEND_FROM_EMAIL = "security@manageos.test";
+    process.env.PUBLIC_APP_URL = "http://localhost:5173";
+    let capturedResetLink = "";
+    let capturedInvitationLink = "";
+    t.mock.method(globalThis, "fetch", async (url, options) => {
+      assert.equal(url, "https://api.resend.com/emails");
+      const message = JSON.parse(options.body);
+      if (message.subject.startsWith("You're invited")) {
+        capturedInvitationLink = message.text;
+        return { ok: message.to[0] !== "delivery-fail@manageos.test", status: 202 };
+      }
+      assert.equal(message.to[0], "owner-integration@manageos.test");
+      capturedResetLink = message.text;
+      return { ok: true, status: 200 };
+    });
+    try {
+      const forgotten = await owner.post("/api/auth/forgot-password", {
+        email: "OWNER-INTEGRATION@MANAGEOS.TEST",
+      });
+      assert.equal(forgotten.status, 200, JSON.stringify(forgotten.body));
+      assert.ok(!JSON.stringify(forgotten.body).includes("token"));
+      const missing = await owner.post("/api/auth/forgot-password", {
+        email: "unknown@manageos.test",
+      });
+      assert.equal(missing.status, 200);
+      assert.deepEqual(missing.body, forgotten.body);
+
+      const tokenMatch = capturedResetLink.match(/token=([a-f0-9]{64})/);
+      assert.ok(tokenMatch, "a reset URL should be sent through email");
+      const resetToken = tokenMatch[1];
+      const hash = require("../../src/services/passwordRecoveryService").hashResetToken(resetToken);
+      const stored = await pool.query(
+        "SELECT token_hash FROM password_reset_tokens WHERE user_id=$1 AND used_at IS NULL",
+        [ownerId]
+      );
+      assert.equal(stored.rows.length, 1);
+      assert.equal(stored.rows[0].token_hash, hash);
+      assert.notEqual(stored.rows[0].token_hash, resetToken);
+
+      const invalidReset = await owner.post("/api/auth/reset-password", {
+        token: "0".repeat(64), password: "A-different-long-password-2026",
+      });
+      assert.equal(invalidReset.status, 400);
+
+      const validReset = await owner.post("/api/auth/reset-password", {
+        token: resetToken, password: "A-different-long-password-2026",
+      });
+      assert.equal(validReset.status, 200, JSON.stringify(validReset.body));
+      const replay = await owner.post("/api/auth/reset-password", {
+        token: resetToken, password: "A-different-long-password-2026",
+      });
+      assert.equal(replay.status, 400);
+
+      const oldSession = await owner.get("/api/auth/me");
+      assert.equal(oldSession.status, 401);
+      const oldLogin = await owner.post("/api/auth/login", {
+        email: "owner-integration@manageos.test", password: secret,
+      });
+      assert.equal(oldLogin.status, 401);
+      const newLogin = await owner.post("/api/auth/login", {
+        email: "owner-integration@manageos.test", password: "A-different-long-password-2026",
+      });
+      assert.equal(newLogin.status, 200, JSON.stringify(newLogin.body));
+
+      const resetAudit = await pool.query(
+        `SELECT action FROM audit_logs WHERE company_id = $1
+         AND actor_id = $2 AND action = 'USER_PASSWORD_RESET'`,
+        [companyId, ownerId]
+      );
+      assert.equal(resetAudit.rows.length, 1);
+
+      // In production, invite tokens must only travel by email, never
+      // through a JSON response. Failed deliveries must be revoked.
+      process.env.NODE_ENV = "production";
+      process.env.PUBLIC_APP_URL = "https://app.manageos.test";
+      const employeeRoleQuery = await pool.query(
+        `SELECT id FROM roles WHERE name='EMPLOYEE'
+         AND company_id IS NULL AND is_system = TRUE LIMIT 1`
+      );
+      const employeeRoleId = employeeRoleQuery.rows[0].id;
+      const deliveredInvite = await owner.post("/api/invitations", {
+        email: "invited-through-email@manageos.test",
+        roleId: employeeRoleId, organizationUnitId: null,
+      });
+      assert.equal(deliveredInvite.status, 201, JSON.stringify(deliveredInvite.body));
+      assert.equal(deliveredInvite.body.data.token, undefined);
+      assert.match(capturedInvitationLink, /token=[a-f0-9]{64}/);
+      const invitedToken = capturedInvitationLink.match(/token=([a-f0-9]{64})/)[1];
+      const acceptedByEmail = await owner.post("/api/invitations/accept", {
+        token: invitedToken, firstName: "Invited", lastName: "Tester",
+        password: "Invited-Long-Password-2026",
+      });
+      assert.equal(acceptedByEmail.status, 201, JSON.stringify(acceptedByEmail.body));
+
+      const failureInvite = await owner.post("/api/invitations", {
+        email: "delivery-fail@manageos.test",
+        roleId: employeeRoleId, organizationUnitId: null,
+      });
+      assert.equal(failureInvite.status, 503, JSON.stringify(failureInvite.body));
+      const failedRecord = await pool.query(
+        `SELECT status FROM invitations WHERE email='delivery-fail@manageos.test'`
+      );
+      assert.equal(failedRecord.rows.length, 1);
+      assert.equal(failedRecord.rows[0].status, "REVOKED");
+
+      const preservedKey = process.env.RESEND_API_KEY;
+      process.env.RESEND_API_KEY = "";
+      const unconfiguredInvite = await owner.post("/api/invitations", {
+        email: "unconfigured-delivery@manageos.test",
+        roleId: employeeRoleId, organizationUnitId: null,
+      });
+      assert.equal(unconfiguredInvite.status, 503);
+      process.env.RESEND_API_KEY = preservedKey;
+      const skippedRecord = await pool.query(
+        `SELECT 1 FROM invitations WHERE email='unconfigured-delivery@manageos.test'`
+      );
+      assert.equal(skippedRecord.rows.length, 0);
+    } finally {
+      if (previousEnv.key === undefined) delete process.env.RESEND_API_KEY;
+      else process.env.RESEND_API_KEY = previousEnv.key;
+      if (previousEnv.from === undefined) delete process.env.RESEND_FROM_EMAIL;
+      else process.env.RESEND_FROM_EMAIL = previousEnv.from;
+      if (previousEnv.origin === undefined) delete process.env.PUBLIC_APP_URL;
+      else process.env.PUBLIC_APP_URL = previousEnv.origin;
+      process.env.NODE_ENV = "test";
+    }
+
   } finally {
     await pool.end();
   }

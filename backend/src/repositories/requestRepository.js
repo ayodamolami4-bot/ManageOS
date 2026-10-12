@@ -127,9 +127,27 @@ async function updateRequestStatus(requestId, status, user) {
   }
 }
 
+
+/**
+ * Minimal, company-scoped recipient directory for every authenticated
+ * employee. Full user profiles, emails and role assignments remain under
+ * their existing user-directory permissions.
+ */
+async function getRequestRecipients(companyId, requesterId) {
+  const result = await pool.query(
+    `SELECT id, first_name, last_name
+     FROM users
+     WHERE company_id = $1 AND id <> $2
+     ORDER BY first_name, last_name, id`,
+    [companyId, requesterId]
+  );
+  return result.rows;
+}
+
 module.exports = {
   createRequest,
   getCompanyRequests,
   getRequestById,
   updateRequestStatus,
+  getRequestRecipients,
 };

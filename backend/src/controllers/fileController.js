@@ -37,6 +37,18 @@ async function upload(
       error
     );
 
+    if (
+      error.message === "FILE_STORAGE_NOT_CONFIGURED" ||
+      error.message === "FILE_STORAGE_UNAVAILABLE"
+    ) {
+      return res.status(503).json({
+        error: {
+          code: "FILE_STORAGE_UNAVAILABLE",
+          message: "File storage is temporarily unavailable"
+        }
+      });
+    }
+
     if (error.message === "FILE_ACCESS_FORBIDDEN") {
       return res.status(403).json({
         error: {
@@ -261,6 +273,13 @@ async function downloadFile(
         req.user
       );
 
+    if (result.body) {
+      res.set("Cache-Control", "private, no-store");
+      res.attachment(result.file.original_name);
+      res.type(result.file.mime_type || "application/octet-stream");
+      return res.send(result.body);
+    }
+
     return res.download(
       result.storagePath,
       result.file.original_name,
@@ -292,6 +311,18 @@ async function downloadFile(
       "File download failed:",
       error
     );
+
+    if (
+      error.message === "FILE_STORAGE_NOT_CONFIGURED" ||
+      error.message === "FILE_STORAGE_UNAVAILABLE"
+    ) {
+      return res.status(503).json({
+        error: {
+          code: "FILE_STORAGE_UNAVAILABLE",
+          message: "File storage is temporarily unavailable"
+        }
+      });
+    }
 
     if (error.message === "FILE_ACCESS_FORBIDDEN") {
       return res.status(403).json({

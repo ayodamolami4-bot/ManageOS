@@ -316,6 +316,15 @@ async function deleteFileWithClient(
     ]
   );
 
+  // A durable job is written BEFORE the transaction commits. No orphaned
+  // object is forgotten if the provider fails or Render goes to sleep.
+  await client.query(
+    `INSERT INTO file_deletion_jobs (company_id, file_id, storage_key)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (storage_key) DO NOTHING`,
+    [companyId, fileId, existingFile.storage_key]
+  );
+
   return deletedFile;
 }
 

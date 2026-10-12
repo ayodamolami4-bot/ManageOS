@@ -24,6 +24,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run lint
+      - name: Enforce frontend runtime dependency security
+        run: npm audit --omit=dev --audit-level=high
 
   backend:
     runs-on: ubuntu-latest
@@ -39,6 +41,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm test
+      - name: Enforce backend runtime dependency security
+        run: npm audit --omit=dev --audit-level=high
 
   postgres-integration:
     name: PostgreSQL integration
@@ -166,3 +170,29 @@ jobs:
             frontend/playwright-report
             frontend/test-results
           retention-days: 7
+
+  production-smoke:
+    name: Production artifact smoke
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+      PUBLIC_APP_URL: http://localhost:5000
+      RUN_PRODUCTION_SMOKE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci --include=dev
+        working-directory: backend
+      - run: npm ci --include=dev
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - name: Serve real React build and API through Express
+        run: node --test tests/productionIntegration.test.js
+        working-directory: backend

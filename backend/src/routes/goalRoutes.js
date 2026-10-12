@@ -25,6 +25,16 @@ const goalIdSchema = z.object({
   goalId: z.string().uuid("Invalid goal reference")
 }).strict();
 
+const {
+  listGoalProjects, linkGoalProject, unlinkGoalProject,
+} = require("../controllers/goalProjectController");
+
+const goalProjectBody = z.object({ projectId: z.string().uuid("Invalid project reference") }).strict();
+const goalProjectParams = z.object({
+  goalId: z.string().uuid("Invalid goal reference"),
+  projectId: z.string().uuid("Invalid project reference"),
+}).strict();
+
 const router = express.Router();
 
 router.post(
@@ -66,5 +76,13 @@ router.delete(
   requireGoalManagement,
   deleteGoal
 );
+
+router.get("/:goalId/projects",
+  authenticate, validateParams(goalIdSchema), requireGoalView, listGoalProjects);
+router.post("/:goalId/projects",
+  authenticate, validateParams(goalIdSchema), validateBody(goalProjectBody),
+  requireGoalManagement, linkGoalProject);
+router.delete("/:goalId/projects/:projectId",
+  authenticate, validateParams(goalProjectParams), requireGoalManagement, unlinkGoalProject);
 
 module.exports = router;

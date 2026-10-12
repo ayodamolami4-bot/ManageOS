@@ -210,14 +210,35 @@ async function loginUser({
     await pool.query(
       `
       SELECT
-        id,
-        company_id,
-        first_name,
-        last_name,
-        email,
+        users.id,
+        users.company_id,
+        companies.name AS company_name,
+        users.first_name,
+        users.last_name,
+        users.email,
+        (
+                    SELECT COALESCE(
+                      jsonb_agg(jsonb_build_object(
+                        'name', r.name,
+                        'organization_unit_id', ur.organization_unit_id
+                      ) ORDER BY r.name),
+                      '[]'::jsonb
+                    )
+                    FROM user_roles ur
+                    JOIN roles r ON r.id = ur.role_id
+                    WHERE ur.user_id = users.id
+                  ) AS roles,
+        (
+          SELECT COALESCE(jsonb_agg(DISTINCT p.name ORDER BY p.name), '[]'::jsonb)
+          FROM user_roles ur
+          JOIN role_permissions rp ON rp.role_id = ur.role_id
+          JOIN permissions p ON p.id = rp.permission_id
+          WHERE ur.user_id = users.id
+        ) AS permissions,
         password_hash
       FROM users
-      WHERE email = $1
+      JOIN companies ON companies.id = users.company_id
+      WHERE users.email = $1
       LIMIT 1
       `,
       [
@@ -283,12 +304,15 @@ async function loginUser({
       id: user.id,
       company_id:
         user.company_id,
+      company_name: user.company_name,
       first_name:
         user.first_name,
       last_name:
         user.last_name,
       email:
-        user.email
+        user.email,
+      roles: user.roles || [],
+      permissions: user.permissions || []
     },
 
     session

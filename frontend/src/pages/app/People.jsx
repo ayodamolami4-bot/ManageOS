@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 
 import { get, post } from "../../services/api";
+import { useAuth } from "../../context/useAuth";
 import MemberAccessControls from "../../components/MemberAccessControls";
 import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
+import { invitationFeedback } from "../../utils/invitationFeedback";
 import "../../components/WorkspaceData.css";
 import "./People.css";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function People() {
+  const { user: currentUser } = useAuth();
+  const canManagePeople = currentUser?.permissions?.includes("people.manage") === true;
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [units, setUnits] = useState([]);
@@ -64,6 +68,7 @@ function People() {
 
   async function submit(event) {
     event.preventDefault();
+    if (!canManagePeople) return;
     const nextErrors = {};
 
     if (!emailPattern.test(draft.email.trim()) || draft.email.trim().length > 254) {
@@ -92,9 +97,7 @@ function People() {
         organizationUnitId: draft.organizationUnitId || null,
       });
 
-      setFeedback(response?.data?.token
-        ? "Invitation created. Share the following development-only link securely:"
-        : "Invitation record created. Email delivery is not configured, so no invitation email has been sent.");
+      setFeedback(invitationFeedback(response));
       if (response?.data?.token) {
         setInvitationUrl(window.location.origin + "/invite?token=" + encodeURIComponent(response.data.token));
       }
@@ -151,9 +154,11 @@ function People() {
           </div>
           <div className="workspace-actions">
             <button className="workspace-action workspace-action--secondary" type="button" onClick={refresh}>Refresh</button>
-            <button className="people-invite-button" type="button" onClick={() => setInviteOpen((open) => !open)}>
-              {inviteOpen ? "Cancel invitation" : "Invite person"}
-            </button>
+            {canManagePeople && (
+              <button className="people-invite-button" type="button" onClick={() => setInviteOpen((open) => !open)}>
+                {inviteOpen ? "Cancel invitation" : "Invite person"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -164,7 +169,7 @@ function People() {
           </p>
         )}
 
-        {inviteOpen && (
+        {canManagePeople && inviteOpen && (
           <form className="workspace-data-form" onSubmit={submit} noValidate>
             <div className="workspace-field workspace-field--wide">
               <label htmlFor="invite-person-email">Invitee email</label>
@@ -221,7 +226,7 @@ function People() {
                   <span>Roles: {user.roles?.map((role) => role.name).join(", ") || "No role assigned"}</span>
                   <span>Units: {user.memberships?.map((membership) => membership.organization_unit_name).join(", ") || "No unit assigned"}</span>
                 </div>
-                <MemberAccessControls member={user} roles={roles} units={units} onRefresh={refresh} />
+                {canManagePeople && <MemberAccessControls member={user} roles={roles} units={units} onRefresh={refresh} />}
               </article>
             ))}
           </div>

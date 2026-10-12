@@ -2,7 +2,8 @@ const {
   createNewRequest,
   getRequests,
   getRequest,
-  changeRequestStatus
+  changeRequestStatus,
+  listRequestRecipients
 } = require("../services/requestService");
 
 async function createRequest(req, res) {
@@ -180,9 +181,22 @@ async function updateRequestStatus(req, res) {
   }
 }
 
+async function getRecipients(req, res) {
+  try {
+    const data = await listRequestRecipients(req.user);
+    return res.status(200).json({ data });
+  } catch (error) {
+    console.error("Request recipient directory failed:", error);
+    return res.status(500).json({
+      error: { code: "REQUEST_RECIPIENTS_FAILED", message: "Unable to load recipients" },
+    });
+  }
+}
+
 module.exports = {
   createRequest,
   getAllRequests,
   getRequestById,
-  updateRequestStatus
+  updateRequestStatus,
+  getRecipients
 };

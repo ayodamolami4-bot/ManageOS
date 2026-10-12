@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { get, put } from "../../services/api";
 import { apiErrorMessage } from "../../utils/validation";
+import { notificationDestination } from "../../utils/notificationDestination";
 import "../../components/WorkspaceData.css";
 import "./Notifications.css";
 
@@ -70,6 +72,7 @@ function Notifications() {
 
   const unread = items.filter((item) => !item.read_at);
   const typeCount = (prefix) => items.filter((item) => item.type?.toUpperCase().includes(prefix)).length;
+  const reviewCount = items.filter((item) => /REVIEW|SUBMIT|NEEDS_CHANGES|TASK_COMPLETED/.test(item.type || "")).length;
 
   return (
     <div className="notifications-page">
@@ -88,7 +91,7 @@ function Notifications() {
           {[
             ["UNREAD", loading || error ? "—" : unread.length, "Notifications that have not been read"],
             ["ASSIGNMENTS", loading || error ? "—" : typeCount("ASSIGN"), "Notifications about assignments"],
-            ["REVIEWS", loading || error ? "—" : typeCount("REVIEW"), "Review-related notifications"],
+            ["REVIEWS", loading || error ? "—" : reviewCount, "Review and decision notifications"],
             ["REQUESTS", loading || error ? "—" : typeCount("REQUEST"), "Request-related notifications"],
           ].map(([label, count, detail]) => (
             <article className="notifications-state" key={label}>
@@ -128,10 +131,21 @@ function Notifications() {
                     <h3>{item.title}</h3>
                     <p>{item.message}</p>
                   </div>
-                  {!item.read_at ? (
-                    <button type="button" className="workspace-action workspace-action--secondary"
-                      disabled={busy} onClick={() => markRead(item)}>Mark read</button>
-                  ) : <span className="workspace-data-meta">Read</span>}
+                  <div className="workspace-actions">
+                    {notificationDestination(item) && (
+                      <Link
+                        className="workspace-action"
+                        to={notificationDestination(item)}
+                        onClick={() => { if (!item.read_at) void markRead(item); }}
+                      >
+                        Open related work
+                      </Link>
+                    )}
+                    {!item.read_at ? (
+                      <button type="button" className="workspace-action workspace-action--secondary"
+                        disabled={busy} onClick={() => markRead(item)}>Mark read</button>
+                    ) : <span className="workspace-data-meta">Read</span>}
+                  </div>
                 </div>
               </article>
             ))}
