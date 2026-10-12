@@ -9,6 +9,7 @@ export default function EventRecordList({ kind }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [accessDenied, setAccessDenied] = useState(false);
   const [retryIndex, setRetryIndex] = useState(0);
   const isAudit = kind === "audit";
   const path = isAudit ? "/audit-logs" : "/activities";
@@ -21,9 +22,15 @@ export default function EventRecordList({ kind }) {
         setItems(Array.isArray(response?.data?.items) ? response.data.items : []);
         setPagination(response?.data?.pagination || null);
         setErrorMessage("");
+        setAccessDenied(false);
       })
       .catch((error) => {
-        if (active) setErrorMessage(apiErrorMessage(error));
+        if (!active) return;
+        setAccessDenied(error?.status === 403);
+        setErrorMessage(error?.status === 403
+          ? (isAudit ? "You do not have permission to view audit records." : "You do not have permission to view company activity.")
+          : apiErrorMessage(error)
+        );
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -56,9 +63,15 @@ export default function EventRecordList({ kind }) {
 
       {loading && <p className="workspace-feedback" role="status">Loading records...</p>}
       {!loading && errorMessage && (
-        <p className="workspace-feedback" role="alert">
-          {errorMessage}
-        </p>
+        <div className="workspace-feedback" role="alert">
+          <p>{errorMessage}</p>
+          {!accessDenied && (
+            <button className="workspace-action workspace-action--secondary" type="button"
+              onClick={() => { setLoading(true); setRetryIndex((n) => n + 1); }}>
+              Retry loading records
+            </button>
+          )}
+        </div>
       )}
       {!loading && !errorMessage && items.length === 0 && (
         <p className="workspace-feedback">
