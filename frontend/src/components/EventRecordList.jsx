@@ -39,7 +39,7 @@ export default function EventRecordList({ kind }) {
     return () => {
       active = false;
     };
-  }, [path, page, retryIndex]);
+  }, [path, page, retryIndex, isAudit]);
 
   function goTo(nextPage) {
     setLoading(true);
