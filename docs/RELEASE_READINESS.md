@@ -25,12 +25,18 @@ This file is a working engineering checklist, **not** a claim that ManageOS is r
 - Render **Free** Blueprint (no paid service or pre-deploy feature), separate manual demo-database migrations and documented zero-cost recruiter cutover; no production service or database was modified.
 - Production artifact CI smoke job added; see `DEPLOYMENT_RUNBOOK.md` for ordered release gates and status.
 
+## October 12 — Supabase Storage integration for zero-cost demo
+- User created a private Supabase Storage bucket named `manageos-files`.
+- Backend adds server-side Supabase REST adapter for file upload, download and removal; production selects `FILE_STORAGE_BACKEND=supabase` by default. Company/project authorization, file metadata and deletion-outbox flows remain in ManageOS PostgreSQL.
+- Render Free Blueprint and GitHub Actions workflows updated to use `SUPABASE_URL`/`SUPABASE_SECRET_KEY` (Render) and `MANAGEOS_SUPABASE_URL`/`MANAGEOS_SUPABASE_SECRET_KEY` (GitHub), respectively. Never commit or share secret keys.
+- Unit/API-mock integration tests added, but real private-bucket verification is pending; see `DEPLOYMENT_RUNBOOK.md`.
+
 ## Required before real customers
 - Configure verified sending domain, HTTPS public URL, Resend API key. Test actual deliverability and recovery failure handling.
 - Review rate limiting for multiple backend instances: in-memory IP rate limits must move to a distributed store or gateway.
 - Production email queue/outbox and retry strategy to protect external sends from worker/network failures.
 - Secure production PostgreSQL, automated migrations, backup and restore drills, migrations rollback plan.
-- Durable private object storage: existing file subsystem is local filesystem and is not reliable on ephemeral cloud disks.
+- Private Supabase Storage adapter and durable deletion retry now implemented; require actual private-bucket round trip, credential setup, persisted-file restart test and upload-failure reconciliation before release.
 - Review deletion lifecycle of stored files, MIME/content validation, antivirus scanning, size limits and access controls.
 - Complete tenancy and role-based authorization regression matrix, security review and external review of account/session recovery.
 - Accessibility audit: keyboard navigation, contrast, mobile user flows, screen readers and reduced motion.
