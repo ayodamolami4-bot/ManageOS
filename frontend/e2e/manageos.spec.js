@@ -172,6 +172,10 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await signIn(employee, employeeEmail);
     await expect(employee.getByRole("link", { name: "Activity", exact: true })).toHaveCount(0);
     await expect(employee.getByRole("link", { name: "Audit", exact: true })).toHaveCount(0);
+    await employee.goto("/app/people");
+    await expect(employee.getByRole("heading", { name: "People", exact: true })).toBeVisible();
+    await expect(employee.getByRole("button", { name: "Invite person" })).toHaveCount(0);
+    await expect(employee.getByText("Manage organization and roles")).toHaveCount(0);
 
     await owner.goto(projectPath);
     await owner.locator("#project-member").selectOption({ label: "Employee Tester" });
