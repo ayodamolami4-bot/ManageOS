@@ -92,30 +92,8 @@ function createR2Store({
   };
 }
 
-function storageMode(env = process.env) {
-  const mode = env.FILE_STORAGE_BACKEND ||
-    (env.NODE_ENV === "production" ? "r2" : "local");
-  if (mode !== "r2" && mode !== "local") throw new Error("FILE_STORAGE_NOT_CONFIGURED");
-  // A Render Free instance loses local files on shutdown. Never silently use it.
-  if (env.NODE_ENV === "production" && mode === "local") {
-    throw new Error("FILE_STORAGE_NOT_CONFIGURED");
-  }
-  return mode;
-}
-
-function configuredStore(env = process.env) {
-  if (storageMode(env) === "local") return null;
-  return createR2Store({
-    accountId: env.R2_ACCOUNT_ID,
-    bucket: env.R2_BUCKET,
-    token: env.R2_API_TOKEN
-  });
-}
-
 module.exports = {
   MAX_FILE_BYTES,
   validateStorageKey,
   createR2Store,
-  storageMode,
-  configuredStore
 };
