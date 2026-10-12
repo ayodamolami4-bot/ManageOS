@@ -95,3 +95,23 @@ test("oversized file, invalid path and provider network error fail safely", asyn
   });
   await assert.rejects(tooLarge.get(key), /FILE_STORAGE_UNAVAILABLE/);
 });
+
+test("live bucket metadata must confirm a private bucket before uploading", async () => {
+  const seen = [];
+  const valid = createSupabaseStore({
+    ...config,
+    fetchImpl: async (url, opts) => {
+      seen.push({ url, opts });
+      return new Response(JSON.stringify({ id: "manageos-files", public: false }), { status: 200 });
+    }
+  });
+  assert.equal(await valid.assertPrivateBucket(), true);
+  assert.equal(seen[0].url, config.url + "/storage/v1/bucket/manageos-files");
+  assert.equal(seen[0].opts.headers.Authorization, "Bearer " + config.secretKey);
+
+  const publicBucket = createSupabaseStore({
+    ...config,
+    fetchImpl: async () => new Response(JSON.stringify({ id: "manageos-files", public: true }), { status: 200 })
+  });
+  await assert.rejects(publicBucket.assertPrivateBucket(), /FILE_STORAGE_NOT_PRIVATE/);
+});
