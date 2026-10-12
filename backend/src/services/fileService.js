@@ -9,6 +9,7 @@ const {
 
 const { generateStorageKey, deleteTemporaryFile } = require("../utils/fileStorage");
 const { persistFile, retrieveFile, removeStoredFile } = require("../utils/fileStorageBackend");
+const { processFileDeletions } = require("./fileDeletionService");
 
 const {
   validateFileContent
@@ -523,53 +524,32 @@ async function deleteFile(
     );
   }
 
-  const client =
-    await pool.connect();
-
+  const client = await pool.connect();
+  let deletedFile;
   try {
-    await client.query(
-      "BEGIN"
-    );
-
-    const deletedFile =
-      await deleteFileWithClient(
-        client,
-        {
-          companyId:
-            user.company_id,
-          fileId,
-          actorId:
-            user.id
-        }
-      );
-
-    await client.query(
-      "COMMIT"
-    );
-
-    try {
-      await removeStoredFile(
-        deletedFile.storage_key
-      );
-    } catch (storageError) {
-      console.error(
-        "Physical file deletion failed:",
-        storageError
-      );
-    }
-
-    return toPublicFile(
-      deletedFile
-    );
+    await client.query("BEGIN");
+    deletedFile = await deleteFileWithClient(client, {
+      companyId: user.company_id,
+      fileId,
+      actorId: user.id
+    });
+    // The deletion outbox job is inserted in this SAME transaction.
+    await client.query("COMMIT");
   } catch (error) {
-    await client.query(
-      "ROLLBACK"
-    );
-
+    await client.query("ROLLBACK").catch(() => {});
     throw error;
   } finally {
     client.release();
   }
+
+  // The file is now inaccessible by API. Try physical removal immediately.
+  // If the provider is down, the durable outbox retries without data loss.
+  try {
+    await processFileDeletions({ limit: 1, storageKey: deletedFile.storage_key });
+  } catch (error) {
+    console.error("Physical file deletion deferred:", error.message);
+  }
+  return toPublicFile(deletedFile);
 }
 
 module.exports = {
