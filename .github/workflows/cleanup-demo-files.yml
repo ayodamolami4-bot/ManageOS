@@ -19,11 +19,11 @@ jobs:
     timeout-minutes: 8
     env:
       NODE_ENV: production
-      FILE_STORAGE_BACKEND: r2
+      FILE_STORAGE_BACKEND: supabase
       DATABASE_URL: ${{ secrets.MANAGEOS_DEMO_DATABASE_URL }}
-      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      R2_API_TOKEN: ${{ secrets.R2_API_TOKEN }}
+      SUPABASE_URL: ${{ secrets.MANAGEOS_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.MANAGEOS_SUPABASE_SECRET_KEY }}
+      SUPABASE_STORAGE_BUCKET: manageos-files
     defaults:
       run:
         working-directory: backend
@@ -31,12 +31,12 @@ jobs:
       - name: Check demo storage configuration
         id: config
         run: |
-          if [ -n "$DATABASE_URL" ] && [ -n "$R2_ACCOUNT_ID" ] &&
-             [ -n "$R2_BUCKET" ] && [ -n "$R2_API_TOKEN" ]; then
+          if [ -n "$DATABASE_URL" ] && [ -n "$SUPABASE_URL" ] &&
+             [ -n "$SUPABASE_SECRET_KEY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Demo database or R2 secrets unavailable; skipping cleanup."
+            echo "Demo database or Supabase Storage secrets unavailable; skipping cleanup."
           fi
       - uses: actions/checkout@v4
         if: steps.config.outputs.enabled == 'true'
