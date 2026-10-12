@@ -56,10 +56,10 @@ test("private Supabase Storage uses authenticated POST/GET/DELETE with no public
 
   assert.deepEqual(observed.map((c) => c.options.method), ["POST", "GET", "DELETE"]);
   assert.equal(observed[0].url, config.url + "/storage/v1/object/manageos-files/" + key);
-  assert.equal(observed[1].url, observed[0].url);
+  assert.equal(observed[1].url, config.url + "/storage/v1/object/authenticated/manageos-files/" + key);
   assert.equal(observed[2].url, config.url + "/storage/v1/object/manageos-files");
   assert.equal(observed[0].options.headers.apikey, config.secretKey);
-  assert.equal(observed[0].options.headers.Authorization, "Bearer " + config.secretKey);
+  assert.equal(observed[0].options.headers.Authorization, undefined);
   assert.equal(observed[0].options.headers["x-upsert"], "false");
   assert.equal(observed[0].options.headers["Content-Type"], "application/pdf");
   assert.equal(observed[0].options.body, bytes);
@@ -107,7 +107,7 @@ test("live bucket metadata must confirm a private bucket before uploading", asyn
   });
   assert.equal(await valid.assertPrivateBucket(), true);
   assert.equal(seen[0].url, config.url + "/storage/v1/bucket/manageos-files");
-  assert.equal(seen[0].opts.headers.Authorization, "Bearer " + config.secretKey);
+  assert.equal(seen[0].opts.headers.Authorization, undefined);
 
   const publicBucket = createSupabaseStore({
     ...config,
