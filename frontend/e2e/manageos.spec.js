@@ -121,6 +121,31 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
 
     await owner.goto(projectPath);
 
+    // Milestone editing must persist through the real API and reject invalid input.
+    await owner.getByRole("button", { name: "Add milestone" }).click();
+    const initialMilestoneName = `Initial delivery ${id}`;
+    const revisedMilestoneName = `Release candidate ${id}`;
+    await owner.locator("#milestone-name").fill(initialMilestoneName);
+    await owner.getByRole("button", { name: "Create milestone" }).click();
+    const milestoneCard = owner.locator("article.workspace-data-item").filter({
+      has: owner.getByRole("heading", { name: initialMilestoneName })
+    });
+    await expect(milestoneCard).toBeVisible();
+    await milestoneCard.getByRole("button", { name: "Edit milestone" }).click();
+    await owner.locator("#edit-milestone-name").fill("");
+    await owner.getByRole("button", { name: "Save milestone" }).click();
+    await expect(owner.getByText("Milestone name is required.")).toBeVisible();
+    await owner.locator("#edit-milestone-name").fill(revisedMilestoneName);
+    await owner.locator("#edit-milestone-status").selectOption("IN_PROGRESS");
+    await owner.getByRole("button", { name: "Save milestone" }).click();
+    await expect(owner.getByText("Milestone updated.")).toBeVisible();
+    await expect(owner.getByRole("heading", { name: revisedMilestoneName })).toBeVisible();
+    await owner.reload();
+    const revisedMilestone = owner.locator("article.workspace-data-item").filter({
+      has: owner.getByRole("heading", { name: revisedMilestoneName })
+    });
+    await expect(revisedMilestone.getByText("Status: IN PROGRESS")).toBeVisible();
+
     await owner.locator("#project-link-unit").selectOption({ label: unitName });
     await owner.getByRole("button", { name: "Link unit" }).click();
     await expect(owner.getByText(unitName).first()).toBeVisible();
@@ -148,6 +173,12 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await owner.locator("#project-member").selectOption({ label: "Employee Tester" });
     await owner.getByRole("button", { name: "Add member" }).click();
     await expect(owner.getByText("Employee Tester").first()).toBeVisible();
+
+    // Read-only project members should not see controls reserved for managers.
+    await employee.goto(projectPath);
+    await expect(employee.getByRole("heading", { name: revisedMilestoneName })).toBeVisible();
+    await expect(employee.getByRole("button", { name: "Edit milestone" })).toHaveCount(0);
+    await expect(employee.getByRole("button", { name: "Add milestone" })).toHaveCount(0);
 
     await owner.goto("/app/work");
     await owner.getByRole("button", { name: "Create task" }).click();
