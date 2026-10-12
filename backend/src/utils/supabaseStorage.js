@@ -22,7 +22,7 @@ function createSupabaseStore({
     if (
       parsed.protocol !== "https:" ||
       !/^[a-z0-9-]+\.supabase\.co$/i.test(parsed.hostname) ||
-      parsed.username || parsed.password ||
+      parsed.username || parsed.password || parsed.port ||
       parsed.pathname !== "/" || parsed.search || parsed.hash
     ) {
       throw new Error("invalid");
@@ -78,6 +78,18 @@ function createSupabaseStore({
   }
 
   return {
+    async assertPrivateBucket() {
+      const response = await call(
+        "GET",
+        origin + "/storage/v1/bucket/" + encodeURIComponent(bucket)
+      );
+      const info = await response.json().catch(() => null);
+      if (info?.id !== bucket || info.public !== false) {
+        throw new Error("FILE_STORAGE_NOT_PRIVATE");
+      }
+      return true;
+    },
+
     async put(key, bytes, mimeType) {
       if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > MAX_FILE_BYTES) {
         throw new Error("FILE_TOO_LARGE");
