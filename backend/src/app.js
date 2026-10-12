@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("node:path");
 const { serveFrontend } = require("./middleware/serveFrontend");
+const { configuredStore } = require("./utils/r2Storage");
 const helmet = require("helmet");
 const cors = require("cors");
 const pool = require("./db/database");
@@ -170,11 +171,15 @@ app.get(
 app.get("/api/ready", async (req, res) => {
   res.set("Cache-Control", "no-store");
   try {
+    if (process.env.NODE_ENV === "production") {
+      // A live demo must never report ready while file uploads would vanish.
+      configuredStore();
+    }
     await pool.query("SELECT 1");
-    res.json({ status: "ok", database: "connected" });
+    res.json({ status: "ok", database: "connected", storage: "configured" });
   } catch (error) {
-    console.error("Database readiness check failed:", error);
-    res.status(503).json({ status: "unavailable", database: "not connected" });
+    console.error("Application readiness check failed:", error.message);
+    res.status(503).json({ status: "unavailable" });
   }
 });
 
