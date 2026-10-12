@@ -22,7 +22,7 @@ This file is a working engineering checklist, **not** a claim that ManageOS is r
 - Frontend now uses relative `/api` by default, avoiding production localhost URLs and cross-site session cookies.
 - Backend and migrations accept managed PostgreSQL `DATABASE_URL` while local `DB_*` configuration remains available.
 - Database-backed `/api/ready` endpoint for release health checks.
-- Render manual paid-service Blueprint and documented cutover; no production service or database was modified.
+- Render **Free** Blueprint (no paid service or pre-deploy feature), separate manual demo-database migrations and documented zero-cost recruiter cutover; no production service or database was modified.
 - Production artifact CI smoke job added; see `DEPLOYMENT_RUNBOOK.md` for ordered release gates and status.
 
 ## Required before real customers
