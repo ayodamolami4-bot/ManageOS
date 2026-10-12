@@ -4,16 +4,15 @@ const {
   MAX_FILE_BYTES,
   createR2Store,
   validateStorageKey,
-  configuredStore,
-  storageMode
 } = require("../src/utils/r2Storage");
+const { configuredStore, storageMode } = require("../src/utils/storageProvider");
 
 const key = "files/4323e3b6-5ad2-4ce5-8d29-83d34a76588d/2026/10/190746ca-7283-4b4c-9ee6-c1cadb147755.pdf";
 const config = { accountId: "a".repeat(32), bucket: "manageos-demo", token: "private-r2-token" };
 
-test("R2 is mandatory for production; local disk remains available for tests", () => {
+test("cloud storage is mandatory in production; local disk remains for tests", () => {
   assert.equal(storageMode({ NODE_ENV: "test" }), "local");
-  assert.equal(storageMode({ NODE_ENV: "production" }), "r2");
+  assert.equal(storageMode({ NODE_ENV: "production" }), "supabase");
   assert.throws(() => storageMode({ NODE_ENV: "production", FILE_STORAGE_BACKEND: "local" }), /FILE_STORAGE_NOT_CONFIGURED/);
   assert.throws(() => configuredStore({ NODE_ENV: "production" }), /FILE_STORAGE_NOT_CONFIGURED/);
 });
