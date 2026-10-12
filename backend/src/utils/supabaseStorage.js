@@ -29,19 +29,23 @@ function createSupabaseStore({
     }
     origin = parsed.origin;
   } catch {
-    throw new Error("FILE_STORAGE_NOT_CONFIGURED");
+    // Error is safe for CI logs: never includes the URL or credentials.
+    throw new Error("FILE_STORAGE_NOT_CONFIGURED: SUPABASE_URL_INVALID_PROJECT_ORIGIN");
   }
 
   // New Supabase secret keys are preferred to legacy JWT service_role keys.
   if (
     typeof secretKey !== "string" ||
     !secretKey.startsWith("sb_secret_") ||
-    secretKey.length < 20 ||
-    bucket !== EXPECTED_BUCKET ||
-    !Number.isInteger(timeoutMs) ||
-    timeoutMs < 1000 || timeoutMs > 120000
+    secretKey.length < 20
   ) {
-    throw new Error("FILE_STORAGE_NOT_CONFIGURED");
+    throw new Error("FILE_STORAGE_NOT_CONFIGURED: SUPABASE_SECRET_KEY_INVALID");
+  }
+  if (bucket !== EXPECTED_BUCKET) {
+    throw new Error("FILE_STORAGE_NOT_CONFIGURED: SUPABASE_STORAGE_BUCKET_INVALID");
+  }
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) {
+    throw new Error("FILE_STORAGE_NOT_CONFIGURED: STORAGE_TIMEOUT_INVALID");
   }
 
   const baseUrl = origin + "/storage/v1/object/";
