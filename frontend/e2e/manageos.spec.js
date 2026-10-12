@@ -422,3 +422,38 @@ test("password recovery forms validate credentials and show service failures", a
   await expect(page.getByText(/Open a valid reset link from your email/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Save new password/ })).toBeDisabled();
 });
+
+test("authenticated workspace is usable at 390px mobile width", async ({ page }) => {
+  test.setTimeout(180_000);
+  const id = Date.now().toString(36);
+  const email = "mobile-" + id + "@manageos.test";
+  await page.goto("/register");
+  await page.locator("#companyName").fill("Mobile Workspace " + id);
+  await page.locator("#firstName").fill("Mobile");
+  await page.locator("#lastName").fill("Tester");
+  await page.locator("#register-email").fill(email);
+  await page.locator("#register-password").fill(PASSWORD);
+  await page.locator("#confirm-password").fill(PASSWORD);
+  await page.locator('input[type="checkbox"]').check();
+  await page.getByRole("button", { name: /Create ManageOS account/ }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await signIn(page, email);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const routes = [
+    "overview", "goals", "organization", "people", "projects",
+    "work", "updates", "discussions", "notifications",
+    "activity", "audit", "files"
+  ];
+  for (const route of routes) {
+    await page.goto("/app/" + route);
+    await expect(page.locator(".app-content h1").first()).toBeVisible();
+    const size = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      document: document.documentElement.scrollWidth
+    }));
+    expect(size.document, route + " overflows mobile viewport").toBeLessThanOrEqual(size.viewport + 4);
+  }
+  await page.getByRole("link", { name: "Projects", exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/projects$/);
+});
