@@ -289,6 +289,51 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await employee.goto("/app/notifications");
     await expect(employee.getByText("Your request was updated").first()).toBeVisible();
 
+    // Discussions must create real threads and persist replies between distinct user sessions.
+    await owner.goto("/app/discussions");
+    await owner.getByRole("button", { name: "Start discussion" }).first().click();
+    const discussionTitle = `Weekly delivery decision ${id}`;
+    await owner.locator("#discussion-title").fill(discussionTitle);
+    await owner.getByRole("button", { name: "Start discussion" }).last().click();
+    await expect(owner.getByText("Discussion started.")).toBeVisible();
+    const discussionCard = owner.locator("article.workspace-data-item").filter({
+      has: owner.getByRole("heading", { name: discussionTitle })
+    });
+    await expect(discussionCard.getByRole("button", { name: "Close replies" })).toBeVisible();
+    const discussionElementId = await discussionCard.getAttribute("id");
+    expect(discussionElementId).toMatch(/^discussion-[0-9a-f-]+$/i);
+    const discussionId = discussionElementId.replace("discussion-", "");
+    const discussionLink = "/app/discussions?discussionId=" + discussionId;
+    const ownerReply = `Owner approved the release checklist ${id}`;
+    await owner.locator("#discussion-comment").fill(ownerReply);
+    await owner.getByRole("button", { name: "Post reply" }).click();
+    await expect(discussionCard.getByText(ownerReply)).toBeVisible();
+
+    // Deep links must open a thread and show persisted replies across accounts.
+    await employee.goto(discussionLink);
+    const employeeThread = employee.locator("article.workspace-data-item").filter({
+      has: employee.getByRole("heading", { name: discussionTitle })
+    });
+    await expect(employeeThread.getByRole("button", { name: "Close replies" })).toBeVisible();
+    await expect(employeeThread.getByText(ownerReply)).toBeVisible();
+    const employeeReply = `Employee confirmed completion ${id}`;
+    await employee.locator("#discussion-comment").fill(employeeReply);
+    await employee.getByRole("button", { name: "Post reply" }).click();
+    await expect(employeeThread.getByText(employeeReply)).toBeVisible();
+
+    await owner.goto(discussionLink);
+    await expect(owner.getByText(employeeReply)).toBeVisible();
+
+    // Operational activity is distinct from permission-restricted audit history.
+    await owner.goto("/app/activity");
+    await expect(owner.getByRole("heading", { name: "Recent company activity" })).toBeVisible();
+    await expect(owner.locator("article.workspace-data-item").first()).toBeVisible();
+    await owner.goto("/app/audit");
+    await expect(owner.getByRole("heading", { name: "Formal audit events" })).toBeVisible();
+    await expect(owner.locator("article.workspace-data-item").first()).toBeVisible();
+
+    await employee.goto("/app/audit");
+    await expect(employee.getByRole("alert")).toContainText("You do not have permission to view audit records.");
 
     // Role-specific browser access: real invitations + scoped project leads.
     await inviteAndJoin(owner, manager, {
