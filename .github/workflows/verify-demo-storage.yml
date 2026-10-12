@@ -1,0 +1,31 @@
+name: Verify private ManageOS Supabase Storage
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Live Supabase Storage write-read-delete test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FILE_STORAGE_BACKEND: supabase
+      SUPABASE_URL: ${{ secrets.MANAGEOS_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.MANAGEOS_SUPABASE_SECRET_KEY }}
+      SUPABASE_STORAGE_BUCKET: manageos-files
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Confirm private Supabase credentials are configured
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SECRET_KEY" ]; then
+            echo "Configure MANAGEOS_SUPABASE_URL and MANAGEOS_SUPABASE_SECRET_KEY as GitHub Actions secrets." >&2
+            exit 1
+          fi
+      - name: Exercise live private storage
+        run: node backend/scripts/verifySupabase.js
