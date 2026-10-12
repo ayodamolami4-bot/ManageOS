@@ -7,14 +7,8 @@ const {
   deleteFileWithClient
 } = require("../repositories/fileRepository");
 
-const {
-  generateStorageKey,
-  moveToPermanentStorage,
-  deleteStoredFile,
-  deleteTemporaryFile,
-  calculateSha256,
-  resolveStoragePath
-} = require("../utils/fileStorage");
+const { generateStorageKey, deleteTemporaryFile } = require("../utils/fileStorage");
+const { persistFile, retrieveFile, removeStoredFile } = require("../utils/fileStorageBackend");
 
 const {
   validateFileContent
@@ -26,7 +20,6 @@ const {
   canViewTask
 } = require("./authorizationService");
 
-const fsPromises = require("fs/promises");
 const path = require("path");
 
 const UUID_REGEX =
@@ -292,26 +285,13 @@ async function uploadFile(
      * Only a content-validated file is
      * moved into permanent storage.
      */
-    await moveToPermanentStorage(
-      file.path,
-      storageKey
-    );
+    const checksumSha256 = await persistFile({
+      tempPath: file.path,
+      storageKey,
+      mimeType: file.mimetype
+    });
 
     movedToPermanent = true;
-
-    const storagePath =
-      resolveStoragePath(
-        storageKey
-      );
-
-    /*
-     * Calculate the checksum from the
-     * exact file that was stored.
-     */
-    const checksumSha256 =
-      await calculateSha256(
-        storagePath
-      );
 
     client =
       await pool.connect();
@@ -368,7 +348,7 @@ async function uploadFile(
      */
     if (movedToPermanent) {
       try {
-        await deleteStoredFile(
+        await removeStoredFile(
           storageKey
         );
       } catch (cleanupError) {
@@ -481,29 +461,11 @@ async function getFileForDownload(
 
   await requireFileResourceAccess(file.resource_type, file.resource_id, user);
 
-  const storagePath =
-    resolveStoragePath(
-      file.storage_key
-    );
-
-  try {
-    await fsPromises.access(
-      storagePath
-    );
-  } catch (error) {
-    console.error(
-      "Stored file missing:",
-      error
-    );
-
-    throw new Error(
-      "FILE_STORAGE_NOT_FOUND"
-    );
-  }
+  const stored = await retrieveFile(file.storage_key);
 
   return {
     file,
-    storagePath
+    ...stored
   };
 }
 
@@ -586,7 +548,7 @@ async function deleteFile(
     );
 
     try {
-      await deleteStoredFile(
+      await removeStoredFile(
         deletedFile.storage_key
       );
     } catch (storageError) {
