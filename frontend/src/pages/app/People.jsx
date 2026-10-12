@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { get, post } from "../../services/api";
 import MemberAccessControls from "../../components/MemberAccessControls";
 import { apiErrorMessage, apiFieldErrors } from "../../utils/validation";
+import { invitationFeedback } from "../../utils/invitationFeedback";
 import "../../components/WorkspaceData.css";
 import "./People.css";
 
@@ -92,9 +93,7 @@ function People() {
         organizationUnitId: draft.organizationUnitId || null,
       });
 
-      setFeedback(response?.data?.token
-        ? "Invitation created. Share the following development-only link securely:"
-        : "Invitation record created. Email delivery is not configured, so no invitation email has been sent.");
+      setFeedback(invitationFeedback(response));
       if (response?.data?.token) {
         setInvitationUrl(window.location.origin + "/invite?token=" + encodeURIComponent(response.data.token));
       }
