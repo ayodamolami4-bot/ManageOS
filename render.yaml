@@ -1,13 +1,14 @@
-# Render Blueprint for a future production/recruiter deployment.
+# Budget-safe Render Blueprint for a future non-production portfolio demo.
 # Does not create a service until explicitly connected/synced in Render.
-# One paid web service hosts the React SPA and the Express API at one origin.
+# Free web service: sleeps after 15 minutes of inactivity; cold starts are expected.
 services:
   - type: web
     name: manageos
     runtime: node
-    plan: 0.5c-512mb
+    plan: free
     buildCommand: npm ci --prefix backend && npm ci --include=dev --prefix frontend && npm run build --prefix frontend
-    preDeployCommand: npm run migrate --prefix backend
+    # Render pre-deploy commands are paid-only. Apply migrations separately
+    # using a controlled, manually triggered GitHub workflow before deployment.
     startCommand: npm start --prefix backend
     healthCheckPath: /api/ready
     autoDeployTrigger: off
