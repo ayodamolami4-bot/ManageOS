@@ -15,8 +15,8 @@ const workspaceNavigation = [
   { label: "Updates", path: "/app/updates" },
   { label: "Discussions", path: "/app/discussions" },
   { label: "Notifications", path: "/app/notifications" },
-  { label: "Activity", path: "/app/activity" },
-  { label: "Audit", path: "/app/audit" },
+  { label: "Activity", path: "/app/activity", permission: "activity.view" },
+  { label: "Audit", path: "/app/audit", permission: "audit.view" },
   { label: "Files", path: "/app/files" },
 ];
 
@@ -25,6 +25,11 @@ function AppLayout() {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+
+  const allowedPermissions = new Set(Array.isArray(user?.permissions) ? user.permissions : []);
+  const visibleNavigation = workspaceNavigation.filter(
+    (item) => !item.permission || allowedPermissions.has(item.permission)
+  );
 
   const workspaceName = user?.company_name || "Your company workspace";
 
@@ -79,7 +84,7 @@ function AppLayout() {
         </div>
 
         <nav className="app-navigation" aria-label="Workspace navigation">
-          {workspaceNavigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
