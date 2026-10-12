@@ -1,5 +1,5 @@
 # ManageOS — no-figurehead UI audit
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 ## Non-negotiable rule
 A control is **real** only if it invokes an authorized backend operation or client navigation with a useful result. For mutations, it must handle validation, loading, success, failure, concurrency and role restrictions. Do not count a pretty form or a successful Vite build as functional verification.
@@ -15,13 +15,21 @@ A control is **real** only if it invokes an authorized backend operation or clie
 | Goals | Create/edit/delete goals; real project linking and unlinking | PostgreSQL and Chromium goal->project test | Permission/empty/error-state visual review |
 | Organization | Create units with hierarchy; scoped permission | PostgreSQL company Owner/scoped Manager tests | Browser unit-hierarchy and editing policy |
 | People | Invite, assign roles and units, remove membership | Chromium invite and PostgreSQL role tests | Last-Owner protection in browser |
-| Projects/Project Details | Create/update projects, scope people, linked goals, milestones | Chromium projects and PostgreSQL permission/relationship tests | Detailed milestone editing/status UX |
+| Projects/Project Details | Create/update projects, scope people, linked goals; create and edit milestones | Chromium milestone validation, persisted status changes and employee control denial | Milestone deletion policy and cross-role visual review |
 | Work | Create task, assignment/reassignment, submission, approve/rework, delete | Chromium plus PostgreSQL/concurrency tests | Negative-action UI across every scope |
 | Updates | Persist reports, blockers, requests with allowed status transitions | PostgreSQL requests and blockers | Progress reports and request actions in browser |
-| Discussions | Create company/project discussions and write comments | Live API wiring reviewed | Complete browser discussion/reply tests |
+| Discussions | Create company/project discussions, send replies and open a selected thread by link | Chromium two-account persisted-reply and deep-link checks | Failure-path and project-scoped discussion UX |
 | Notifications | Real inbox, mark-read, follow deep links to tasks, requests, discussions, and projects | Chromium notification-to-task navigation | Verify request/discussion navigation and mark-all |
-| Activity/Audit | Permission-controlled paginated database records | API wiring and PostgreSQL audit events | Browser pagination, forbidden and event-detail states |
+| Activity/Audit | Permission-controlled paginated database records with explicit access-denied and retry states | Chromium Owner read and Employee audit denial; API integration | Pagination and event-detail UX across roles |
 | Files | Select project, upload, download and delete attached file | Chromium uploads/downloads/deletes PNG through real API | Authorization denial tests and durable cloud storage |
+
+## October 12 continuation
+- Browser-tested full authenticated workspace at 390px width across the 12 standard routes; confirmed navigation and document-width behavior. This does not replace manual accessibility and screen-reader testing.
+- Completed milestone edit form with server-backed updates, field validation, save feedback, permission controls and persisted status assertions.
+- Confirmed company discussion creation, Owner-to-Employee replies and reloadable direct links in Chromium.
+- Separated Activity/Audit navigation visibility using the backend's effective user permissions; authorization remains enforced at API endpoints.
+- Corrected invitation success text: development returns a shareable test link, whereas configured production delivery confirms a sent email. Frontend unit tests cover both cases.
+- Four CI jobs succeeded for the earlier mobile/role workflow run. Current PR #3 may include further commits; always inspect its latest commit CI before merging.
 
 ## Recently closed figurehead issues
 - Static password recovery forms -> working backend and interactive forms.
