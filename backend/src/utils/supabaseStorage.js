@@ -45,9 +45,10 @@ function createSupabaseStore({
   }
 
   const baseUrl = origin + "/storage/v1/object/";
+  // Opaque sb_secret_* keys are not JWTs: only send them in the apikey
+  // header. A fake Bearer token can be rejected as Invalid JWT.
   const authenticatedHeaders = {
     apikey: secretKey,
-    Authorization: `Bearer ${secretKey}`,
     "User-Agent": "ManageOS-storage/1.0",
   };
 
@@ -106,7 +107,12 @@ function createSupabaseStore({
     },
 
     async get(key) {
-      const response = await call("GET", fileUrl(key));
+      // Private file downloads use Supabase's authenticated object route.
+      const response = await call(
+        "GET",
+        baseUrl + "authenticated/" + encodeURIComponent(bucket) + "/" +
+          validateStorageKey(key).split("/").map(encodeURIComponent).join("/")
+      );
       const length = response.headers.get("content-length");
       if (length !== null && Number(length) > MAX_FILE_BYTES) {
         throw new Error("FILE_STORAGE_UNAVAILABLE");
