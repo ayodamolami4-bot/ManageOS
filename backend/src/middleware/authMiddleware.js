@@ -86,7 +86,14 @@ async function authenticate(
                       FROM user_roles ur
                       JOIN roles r ON r.id = ur.role_id
                       WHERE ur.user_id = users.id
-                    ) AS roles
+                    ) AS roles,
+          (
+            SELECT COALESCE(jsonb_agg(DISTINCT p.name ORDER BY p.name), '[]'::jsonb)
+            FROM user_roles ur
+            JOIN role_permissions rp ON rp.role_id = ur.role_id
+            JOIN permissions p ON p.id = rp.permission_id
+            WHERE ur.user_id = users.id
+          ) AS permissions
         `,
         [
           sessionId
@@ -161,6 +168,7 @@ async function authenticate(
       last_name:
         user.last_name,
       roles: user.roles || [],
+      permissions: user.permissions || [],
       email:
         user.email
     };
