@@ -35,5 +35,32 @@ jobs:
             echo "MANAGEOS_DEMO_DATABASE_URL secret is required" >&2
             exit 1
           fi
+      - name: Confirm isolated ManageOS database target
+        run: |
+          node <<'NODE'
+          const { Client } = require("pg");
+          (async () => {
+            const db = new Client({ connectionString: process.env.DATABASE_URL });
+            try {
+              await db.connect();
+              const result = await db.query(`
+                SELECT current_database() AS database_name,
+                       (SELECT COUNT(*)::int FROM information_schema.tables
+                         WHERE table_schema = 'public'
+                           AND table_name IN ('orders', 'sub_orders', 'vendor_applications', 'cart_items')) AS marketplace_tables
+              `);
+              if (result.rows[0].database_name !== "manageos" ||
+                  result.rows[0].marketplace_tables !== 0) {
+                throw new Error("Refusing migration: target is not an isolated ManageOS database");
+              }
+              console.log("Verified the isolated manageos database; migration may proceed.");
+            } finally {
+              await db.end();
+            }
+          })().catch(error => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
       - name: Apply approved schema migrations
         run: npm run migrate
