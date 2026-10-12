@@ -69,3 +69,8 @@ test("R2 rejects bad configuration, oversize payloads, and failed requests", asy
     err.message === "FILE_STORAGE_UNAVAILABLE" && !err.message.includes("TOKEN")
   );
 });
+
+test("R2 cleanup treats a previously removed object as successful", async () => {
+  const gone = createR2Store({ ...config, fetchImpl: async () => new Response("", { status: 404 }) });
+  await assert.doesNotReject(gone.delete(key));
+});
