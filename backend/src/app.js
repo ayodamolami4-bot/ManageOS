@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("node:path");
 const { serveFrontend } = require("./middleware/serveFrontend");
-const { configuredStore } = require("./utils/r2Storage");
+const { configuredStore } = require("./utils/storageProvider");
 const helmet = require("helmet");
 const cors = require("cors");
 const pool = require("./db/database");
