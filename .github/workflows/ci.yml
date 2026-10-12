@@ -24,9 +24,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run lint
-      - name: Audit frontend runtime packages (report findings)
+      - name: Enforce frontend runtime dependency security
         run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
 
   backend:
     runs-on: ubuntu-latest
@@ -42,9 +41,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm test
-      - name: Audit backend runtime packages (report findings)
+      - name: Enforce backend runtime dependency security
         run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
 
   postgres-integration:
     name: PostgreSQL integration
