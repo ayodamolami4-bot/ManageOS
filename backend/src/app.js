@@ -35,6 +35,13 @@ const auditLogRoutes = require("./routes/auditLogRoutes");
 
 const app = express();
 
+// Render terminates TLS at its reverse proxy. Trust only that final hop,
+// so request.ip (used by per-client auth rate limits) is not the shared
+// load balancer address. Never use unrestricted trust proxy=true.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 const frontendOrigin =
   process.env.FRONTEND_URL ||
   process.env.PUBLIC_APP_URL ||
