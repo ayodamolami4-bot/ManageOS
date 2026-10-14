@@ -30,6 +30,8 @@ jobs:
     steps:
       - name: Check demo storage configuration
         id: config
+        # Before checkout the backend/ directory does not exist on the runner.
+        working-directory: .
         run: |
           if [ -n "$DATABASE_URL" ] && [ -n "$SUPABASE_URL" ] &&
              [ -n "$SUPABASE_SECRET_KEY" ]; then
