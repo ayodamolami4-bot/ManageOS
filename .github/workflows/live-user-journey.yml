@@ -150,17 +150,7 @@ jobs:
             expect(await a.request("GET", "/api/files/" + fileId), 200, "File metadata read");
             const downloaded = expect(await a.request("GET", "/api/files/" + fileId + "/download", null, { raw: true }),
               200, "Private file download");
-            if (downloaded.data !== text) {
-              const { createHash } = require("node:crypto");
-              console.log("Download diagnostic:", JSON.stringify({
-                expectedBytes: Buffer.byteLength(text),
-                actualBytes: Buffer.byteLength(downloaded.data),
-                expectedSha256: createHash("sha256").update(text).digest("hex"),
-                actualSha256: createHash("sha256").update(downloaded.data).digest("hex"),
-                firstCodepoints: [...downloaded.data.slice(0, 12)].map(x => x.codePointAt(0))
-              }));
-            }
-            must(downloaded.data === text, "Downloaded bytes match upload");
+            must(downloaded === text, "Downloaded bytes match upload");
             expect(await b.request("GET", "/api/files/" + fileId), 404, "Cross-company file isolation");
             expect(await a.request("DELETE", "/api/files/" + fileId), 200, "Private file removal");
             expect(await a.request("GET", "/api/files/" + fileId), 404, "Removed file inaccessible");
