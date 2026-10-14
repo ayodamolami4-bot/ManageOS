@@ -1,0 +1,81 @@
+name: ManageOS live deployment smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/live-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Verify live app and dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Check production HTTP readiness and React pages
+        shell: bash
+        run: |
+          node <<'NODE'
+          const origin = "https://manageos.onrender.com";
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+          async function get(path) {
+            const response = await fetch(origin + path, {
+              redirect: "follow",
+              signal: AbortSignal.timeout(20000),
+              headers: { "User-Agent": "ManageOS-live-smoke/1.0", "Accept": "*/*" }
+            });
+            return { response, body: await response.text() };
+          }
+
+          (async () => {
+            let ready = false;
+            for (let attempt = 1; attempt <= 15; attempt++) {
+              try {
+                const { response, body } = await get("/api/ready");
+                let result;
+                try { result = JSON.parse(body); } catch { result = null; }
+                console.log(`Readiness attempt ${attempt}: HTTP ${response.status}, status=${result?.status || "unknown"}`);
+                if (response.status === 200 &&
+                    result?.status === "ok" &&
+                    result?.database === "connected" &&
+                    result?.storage === "configured") {
+                  ready = true;
+                  break;
+                }
+              } catch (error) {
+                console.log(`Readiness attempt ${attempt}: ${error.name}`);
+              }
+              if (attempt < 15) await sleep(8000);
+            }
+            if (!ready) throw new Error("Production readiness failed: database or storage may not be configured.");
+
+            const paths = [
+              ["/api/health", "application/json"],
+              ["/api/db-test", "application/json"],
+              ["/", "text/html"],
+              ["/login", "text/html"]
+            ];
+            for (const [path, type] of paths) {
+              const { response, body } = await get(path);
+              console.log(`GET ${path} -> ${response.status} ${response.headers.get("content-type") || ""}`);
+              if (response.status !== 200 ||
+                  !response.headers.get("content-type")?.includes(type)) {
+                throw new Error(`Unexpected HTTP status/content type from ${path}`);
+              }
+              if (type === "text/html" && !body.includes("<div id=\"root\"")) {
+                throw new Error(`React root element missing from ${path}`);
+              }
+              if (path === "/api/db-test" && JSON.parse(body).database !== "connected") {
+                throw new Error("Neon database connectivity test failed");
+              }
+            }
+            console.log("ManageOS production smoke checks passed.");
+          })().catch(error => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
