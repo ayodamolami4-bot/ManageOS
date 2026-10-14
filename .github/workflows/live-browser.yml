@@ -1,0 +1,69 @@
+name: ManageOS live browser smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/live-browser.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Check deployed public React pages in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false @playwright/test@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Visit deployed pages and check for React errors
+        env:
+          LIVE_BASE_URL: https://manageos.onrender.com
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from "@playwright/test";
+          const origin = process.env.LIVE_BASE_URL;
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1365, height: 850 } });
+          const exceptions = [];
+          page.on("pageerror", error => exceptions.push(error.message));
+          const paths = [
+            "/", "/product", "/how-it-works", "/security", "/about",
+            "/contact", "/privacy", "/terms",
+            "/login", "/register", "/forgot-password"
+          ];
+          try {
+            for (const path of paths) {
+              exceptions.length = 0;
+              const response = await page.goto(origin + path, {
+                waitUntil: "domcontentloaded", timeout: 120000
+              });
+              await page.locator("#root").waitFor({ timeout: 20000 });
+              await page.waitForTimeout(500);
+              const text = (await page.locator("#root").innerText()).trim();
+              console.log(`GET ${path}: status=${response.status()} renderedChars=${text.length} reactErrors=${exceptions.length}`);
+              if (response.status() !== 200 || text.length < 80 || exceptions.length) {
+                throw new Error(`Browser public route ${path} failed render validation`);
+              }
+            }
+            await page.goto(origin + "/login", { waitUntil: "domcontentloaded" });
+            if (await page.locator("input[type=password]").count() < 1) {
+              throw new Error("Login page password field missing");
+            }
+            console.log("PASS: Deployed React routes and login form render in Chromium.");
+          } finally {
+            await browser.close();
+          }
+          NODE
