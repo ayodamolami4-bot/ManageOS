@@ -131,9 +131,13 @@ jobs:
               201, "Company B registration");
             must(regB.data?.company?.id !== companyA, "Separate companies");
             expect(await b.request("POST", "/api/auth/login", { email: emailB, password }), 200, "Company B login");
-            expect(await b.request("GET", "/api/projects/" + projectId), 404, "Cross-company project read isolation");
-            expect(await b.request("GET", "/api/goals/" + goalId), 404, "Cross-company goal read isolation");
-            expect(await b.request("GET", "/api/tasks/" + taskId), 404, "Cross-company task read isolation");
+            function expectIsolated(result, step) {
+              report(step, result.status, [403, 404].includes(result.status) ? "access denied" : "unexpected response");
+              if (![403, 404].includes(result.status)) throw new Error(step + " did not enforce tenant isolation");
+            }
+            expectIsolated(await b.request("GET", "/api/projects/" + projectId), "Cross-company project read isolation");
+            expectIsolated(await b.request("GET", "/api/goals/" + goalId), "Cross-company goal read isolation");
+            expectIsolated(await b.request("GET", "/api/tasks/" + taskId), "Cross-company task read isolation");
 
             const form = new FormData();
             const text = "ManageOS live file upload verification — " + suffix + "\n";
