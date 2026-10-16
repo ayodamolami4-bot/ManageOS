@@ -73,6 +73,17 @@ jobs:
                 throw new Error("Neon database connectivity test failed");
               }
             }
+            // Production must not expose the portfolio-only recruiter-demo API.
+            for (const [path, expectedStatus] of [
+              ["/api/demo/overview", 404],
+              ["/api/auth/me", 401]
+            ]) {
+              const { response } = await get(path);
+              console.log(`Production boundary GET ${path} -> ${response.status}`);
+              if (response.status !== expectedStatus) {
+                throw new Error(`Production access boundary failed for ${path}`);
+              }
+            }
             console.log("ManageOS production smoke checks passed.");
           })().catch(error => {
             console.error(error.message);
