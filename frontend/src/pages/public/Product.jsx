@@ -25,8 +25,8 @@ function Product() {
                 Create your workspace
               </Link>
 
-              <Link to="/demo" className="product-secondary-action">
-                Explore live demo
+              <Link to="/login" className="product-secondary-action">
+                Login
               </Link>
             </div>
           </div>
