@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { post } from "../../services/api";
@@ -10,6 +10,23 @@ function Invite() {
   const navigate = useNavigate();
   const token = searchParams.get("token") || "";
   const validToken = /^[a-f0-9]{64}$/i.test(token);
+  const [preview, setPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(validToken);
+  const [previewError, setPreviewError] = useState(validToken ? "" : "Open the unique invitation link sent to your email.");
+
+  useEffect(() => {
+    let active = true;
+    if (!validToken) return undefined;
+    post("/invitations/preview", { token })
+      .then((response) => {
+        if (active) { setPreview(response.data); setPreviewError(""); }
+      })
+      .catch((error) => {
+        if (active) { setPreview(null); setPreviewError(apiErrorMessage(error)); }
+      })
+      .finally(() => { if (active) setPreviewLoading(false); });
+    return () => { active = false; };
+  }, [token, validToken]);
   const [form, setForm] = useState({
     firstName: "", lastName: "", password: "", confirmPassword: "",
   });
@@ -26,7 +43,7 @@ function Invite() {
     event.preventDefault();
     const nextErrors = {};
 
-    if (!validToken) nextErrors.token = "A valid invitation link is required.";
+    if (!validToken || !preview || previewLoading) nextErrors.token = "A verified, active invitation is required.";
     const first = validateName(form.firstName, "First name");
     const last = validateName(form.lastName, "Last name");
     if (first) nextErrors.firstName = first;
@@ -124,7 +141,7 @@ function Invite() {
               <span className="invite-square invite-green" />
               <div>
                 <strong>Your company</strong>
-                <p>You’ll join the company named in your invitation.</p>
+                <p>{preview ? preview.companyName : "Your invitation will identify the company."}</p>
               </div>
             </div>
 
@@ -132,7 +149,7 @@ function Invite() {
               <span className="invite-square invite-copper" />
               <div>
                 <strong>Your role</strong>
-                <p>Your company administrator determines your access.</p>
+                <p>{preview ? preview.roleName.replaceAll("_", " ") : "Your company administrator determines your access."}</p>
               </div>
             </div>
 
@@ -140,7 +157,7 @@ function Invite() {
               <span className="invite-square invite-lime" />
               <div>
                 <strong>Your workspace</strong>
-                <p>Your projects, assignments and updates will follow your permissions.</p>
+                <p>{preview?.organizationUnitName || "Your access will follow your company role and permissions."}</p>
               </div>
             </div>
           </div>
@@ -158,14 +175,24 @@ function Invite() {
 
           <div className="invite-company">
             <span className="invite-company-label">Invitation status</span>
-            <strong>{validToken ? "Invitation link received" : "Invitation link required"}</strong>
-            <p>
-              {validToken
-                ? "Your company, role and invitation status will be verified securely when you accept."
-                : "Open the unique invitation link provided by your company administrator."}
-            </p>
+            {previewLoading ? (
+              <p role="status">Verifying your invitation securely…</p>
+            ) : previewError ? (
+              <p role="alert" className="invite-preview-error">{previewError}</p>
+            ) : preview ? (
+              <div className="invite-verified-details" aria-label="Verified invitation details">
+                <strong>{preview.companyName}</strong>
+                <dl>
+                  <div><dt>Your role</dt><dd>{preview.roleName.replaceAll("_", " ")}</dd></div>
+                  <div><dt>Department</dt><dd>{preview.organizationUnitName || "Company-wide"}</dd></div>
+                  <div><dt>Valid until</dt><dd>{new Date(preview.expiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</dd></div>
+                </dl>
+                <p>This company has invited you to create your own account. Your role is assigned by the company, not chosen during sign-up.</p>
+              </div>
+            ) : null}
           </div>
 
+          {preview && !previewLoading && !previewError && (
           <form className="invite-form" onSubmit={handleSubmit} noValidate>
             <div className="invite-field">
               <label htmlFor="invite-first">First name</label>
@@ -233,11 +260,12 @@ function Invite() {
                 {errorMessage || errors.token}
               </p>
             )}
-            <button type="submit" className="invite-submit" disabled={saving || !validToken}>
+            <button type="submit" className="invite-submit" disabled={saving || !validToken || !preview}>
               {saving ? "Accepting..." : "Accept invitation"}
               <span aria-hidden="true">→</span>
             </button>
           </form>
+          )}
 
           <div className="invite-existing">
             <span>Already have a ManageOS account?</span>
