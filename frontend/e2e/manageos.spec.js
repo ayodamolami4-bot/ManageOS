@@ -3,6 +3,18 @@ import { test, expect } from "@playwright/test";
 
 const PASSWORD = "ManageOS-Browser-Tests-2026!";
 
+async function completeCompanyVerification(page, response) {
+  await expect(page).toHaveURL(/\/verify-email$/);
+  const payload = await response.json();
+  expect(response.status()).toBe(202);
+  const token = payload?.data?.testVerificationToken;
+  expect(token).toMatch(/^[a-f0-9]{64}$/);
+  await page.goto("/verify-email?token=" + encodeURIComponent(token));
+  await page.getByRole("button", { name: /Verify email and activate company/ }).click();
+  await expect(page.getByRole("heading", { name: "Your company is ready." })).toBeVisible();
+}
+
+
 async function signIn(page, email) {
   await page.goto("/login");
   await page.locator("#email").fill(email);
@@ -56,7 +68,7 @@ test("protected routes and actual registration field errors", async ({ page }) =
   await page.locator("#register-password").fill(PASSWORD);
   await page.locator("#confirm-password").fill("different-password");
   await page.locator('input[type="checkbox"]').check();
-  await page.getByRole("button", { name: /Create ManageOS account/ }).click();
+  await page.getByRole("button", { name: /Verify email and continue/ }).click();
 
   await expect(page.getByText(/First name must contain letters/i)).toBeVisible();
   await expect(page.getByText(/Passwords do not match/i)).toBeVisible();
@@ -89,8 +101,11 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     await owner.locator("#register-password").fill(PASSWORD);
     await owner.locator("#confirm-password").fill(PASSWORD);
     await owner.locator('input[type="checkbox"]').check();
-    await owner.getByRole("button", { name: /Create ManageOS account/ }).click();
-    await expect(owner).toHaveURL(/\/login$/);
+    const registrationResponse = owner.waitForResponse((res) =>
+      res.url().includes("/api/auth/register/company") && res.request().method() === "POST"
+    );
+    await owner.getByRole("button", { name: /Verify email and continue/ }).click();
+    await completeCompanyVerification(owner, await registrationResponse);
     await signIn(owner, ownerEmail);
     await expect(owner.getByText(`Browser Company ${id}`).first()).toBeVisible();
     await expect(owner.getByRole("link", { name: "Activity", exact: true })).toBeVisible();
@@ -409,7 +424,7 @@ test("mobile form is navigable without horizontal page overflow", async ({ page 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/register");
   await expect(page.locator("#companyName")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Create ManageOS account/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Verify email and continue/ })).toBeVisible();
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     content: document.documentElement.scrollWidth,
@@ -456,8 +471,11 @@ test("authenticated workspace is usable at 390px mobile width", async ({ page })
   await page.locator("#register-password").fill(PASSWORD);
   await page.locator("#confirm-password").fill(PASSWORD);
   await page.locator('input[type="checkbox"]').check();
-  await page.getByRole("button", { name: /Create ManageOS account/ }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  const registrationResponse = page.waitForResponse((res) =>
+    res.url().includes("/api/auth/register/company") && res.request().method() === "POST"
+  );
+  await page.getByRole("button", { name: /Verify email and continue/ }).click();
+  await completeCompanyVerification(page, await registrationResponse);
   await signIn(page, email);
   await page.setViewportSize({ width: 390, height: 844 });
 
