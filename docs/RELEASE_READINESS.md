@@ -13,7 +13,7 @@ not a statement that the app is ready for paying customers.
   files, notifications, activity and permission-protected audit logs.
 - Render Free web service at https://manageos.onrender.com backed by
   Neon PostgreSQL 17 and a private Supabase Storage bucket.
-- 39 production migrations, independent CI including backend, frontend,
+- 42 production migrations, independent CI including backend, frontend,
   database integration, Chromium end-to-end workflows and production bundle.
 - Live browser journeys covering registration, login, team/work operations
   and authenticated private file upload/download/delete.
@@ -32,15 +32,17 @@ not a statement that the app is ready for paying customers.
 
 ## Prepared but not activated
 
-- `.github/workflows/encrypted-backup.yml` for manual PostgreSQL 17
-  encrypted logical exports. Requires independently saved
-  `MANAGEOS_BACKUP_ENCRYPTION_KEY` in GitHub Actions secrets, an actual
-  successful run and an isolated restore drill. No nightly backups are
-  active yet, and the Supabase file objects require independent backup.
-- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` require a verified sender
-  domain and private Render environment configuration. The current user
-  account has not yet supplied these values. We cannot claim invitation
-  or password-reset deliverability.
+- `.github/workflows/encrypted-backup.yml` exports an encrypted PostgreSQL 17
+  logical backup. A successful export (run 38963022587) was decrypted and
+  restored to a disposable PostgreSQL 17 database (run 38963313832).
+  Daily scheduled backups are enabled via GitHub Actions as of October 16;
+  each artifact expires after 14 days. The user must maintain an off-GitHub
+  key and durable exported copies. Supabase object bytes still need separate
+  backups and a restore drill.
+- Google Apps Script delivers verification and email-change messages in
+  production; those two inbox journeys were verified manually. Invitations
+  and password resets also use the same email adapter but their complete
+  real-inbox journeys, delivery failures and provider quotas still need QA.
 - Render's live service currently uses TCP health checks, even though
   `render.yaml` declares HTTP `/api/ready`. Update Health Checks in
   the actual Render service settings.
@@ -50,11 +52,10 @@ not a statement that the app is ready for paying customers.
 
 ## Still required before real customers
 
-1. Configure a verified sender domain and private Resend credentials.
-   Test delivery and failure behavior in a real inbox, including
-   invitations, account recovery, bounces and safe error responses.
-2. Run encrypted backups, verify restoration to an isolated Neon branch,
-   establish a recurring schedule, and back up Supabase objects too.
+1. Complete the live email QA matrix: invitations, account recovery,
+   bounces, quotas, notifications to old addresses and safe error responses.
+2. Download encrypted daily backups to durable off-provider storage and
+   drill restoration on an isolated Neon branch; back up Supabase objects too.
 3. Complete manual security review: cross-company authorization,
    resource-permission matrix, session lifecycle, file access, tenant
    deletion and secure monitoring. Address malware scanning and

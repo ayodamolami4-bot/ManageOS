@@ -1,9 +1,13 @@
 name: Encrypted production database backup
 
-# Manual until the owner has set the independent backup encryption key and
-# verified one restore. Do not enable daily scheduling before that gate passes.
+# A production export was encrypted and restored successfully to a
+# disposable PostgreSQL 17 database on 2026-10-16 (runs 38963022587
+# and 38963313832). GitHub retains only encrypted artifacts.
+# Daily schedule is UTC, intentionally outside Lagos office hours.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "31 3 * * *"
 
 permissions:
   contents: read

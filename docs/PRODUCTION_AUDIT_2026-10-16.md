@@ -7,14 +7,16 @@ independent external penetration test.
 
 ## Verified evidence
 
-- Current main SHA before this audit: cf2ba10; five GitHub CI jobs succeeded.
+- Main SHA before audit: cf2ba10. Migration 042 was safely applied after
+  backup restore; PR #8 merged as 7320812. All six PR checks passed.
 - Owner registration verified by real inbox, with login blocked until
   verification and one-time confirmation enforced.
 - Account email changes verified by real inbox: unverified address is denied,
   verified new address works, old address denied, old sessions revoked.
-- Live ManageOS Neon main read-only checks: 3 companies, 10 users,
-  **zero global email duplicate groups**, 41 migration history entries before
-  migration 042. No automatic production data edits from this audit.
+- Production Neon before migration 042: 3 companies, 10 users,
+  **zero global email duplicate groups** and 41 prior migrations. Migration 042
+  created the case-insensitive unique index and was recorded as applied;
+  post-migration checks confirm the index and all 10 users remain.
 - GitHub live smoke previously passed on Oct 16, but it predates the latest
   deployment; does NOT prove current Render configuration or live uptime.
 - Existing isolated Chromium and PostgreSQL integration CI exercise company
@@ -38,11 +40,11 @@ Enabling multi-company membership would require a separate identity redesign.
 
 ## Operational blockers
 
-1. **Backup + restore** (critical): Encrypted backup workflow exists but has
-   no confirmed successful encrypted artifact + isolated restore drill.
-   Latest visible encrypted-backup workflow run failed. Six-hour Neon free
-   PITR and a one-time snapshot are NOT a long-term off-provider backup.
-   Supabase file object bytes also need independent backups and a restore test.
+1. **Backup + restore** (partly resolved): A successful encrypted backup
+   (run 38963022587) was decrypted and restored to disposable PostgreSQL 17
+   (run 38963313832). Daily GitHub Actions backup scheduling is enabled,
+   with 14-day artifact retention. Still needed: independently archived
+   encrypted copies, Neon-specific restore exercise and Supabase file backups.
 2. **Rollout/rollback** (high): Render Free deployments are manual.
    Migrations must be run in a controlled order on the correct Neon branch.
    Confirm Render HTTP health check targets `/api/ready`; config in
@@ -69,11 +71,11 @@ Enabling multi-company membership would require a separate identity redesign.
 
 ## Release gates (must pass)
 
-- [ ] Verified independent encrypted Neon backup, key stored safely OFF GitHub,
-      downloaded and restored successfully to an isolated branch.
+- [x] Encrypted Neon backup restored to a disposable PostgreSQL 17 instance.
+- [ ] Encrypted copy archived off GitHub and provider-specific Neon restore drill.
 - [ ] File object backup/export and readback restore from a separate location.
-- [ ] Migration 042 safely applied and recorded on production after backup;
-      deploy reviewed PR only after green CI.
+- [x] Migration 042 applied and recorded in production with 10 users preserved.
+- [x] PR #8 merged after green CI; live Render deployment needs confirmation.
 - [ ] Live Render `/api/ready` HTTP health check confirmed and live smoke re-run.
 - [ ] Live invite/recover/email/session scenarios and cross-company denial.
 - [ ] Error, quota and uptime alerts tested without relying on the app being awake.
