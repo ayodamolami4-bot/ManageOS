@@ -28,11 +28,22 @@ This environment is separate from the Marketplace project.
 - 54 task status history records and 7 task review decisions
 - 11 progress reports and 3 blockers
 - 4 operational requests, 3 discussions and 6 comments
-- 8 notifications, 20 activity events and 8 audit entries
+- 8 notifications, 23 activity events and 11 audit entries
+- 3 real private Supabase project documents with verified stored bytes
 
 The sample's dates are relative to the seeding date (October 2026). Update
 stale dates before public portfolio launch, rather than making false claims
 about continuously updated operations.
+
+## Project evidence files
+
+The sample project attachments are actual authenticated Supabase objects,
+not fake links or unbacked database rows. Each file was uploaded, downloaded
+for byte-for-byte verification, and registered with a SHA-256 checksum:
+
+- Lagos Dispatch Command Centre — `dispatch-control-brief.txt`
+- Delivery Exceptions Recovery Playbook — `exceptions-quality-review.txt`
+- Customer ETA Notifications — `customer-alert-pilot-notes.txt`
 
 ## Security and operational notes
 
