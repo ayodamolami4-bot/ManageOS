@@ -84,6 +84,12 @@ test(
       cookies,
       "Expected CSRF cookie to be set"
     );
+    // One request may pass through both global middleware and the CSRF
+    // endpoint. Their tokens must agree; only ONE cookie must be emitted.
+    assert.equal(cookies.length, 1, "Expected one CSRF cookie");
+    const cookieValue = cookies[0].split(";")[0].split("=")[1];
+    assert.equal(cookieValue, response.body.data.csrfToken);
+
 
     assert.ok(
       cookies.some(
