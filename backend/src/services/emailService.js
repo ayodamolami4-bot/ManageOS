@@ -76,4 +76,26 @@ async function sendInvitationEmail({ to, token, companyName, invitationId, roleN
   });
 }
 
-module.exports = { configured, sendPasswordResetEmail, sendInvitationEmail };
+async function sendCompanyVerificationEmail({ to, token, companyName, registrationId }) {
+  const config = readEmailConfig();
+  if (!config) throw new Error("EMAIL_NOT_CONFIGURED");
+  const url = new URL("/verify-email", config.origin);
+  url.searchParams.set("token", token);
+  const safeCompany = String(companyName || "your company").slice(0, 200);
+  return sendEmail({
+    to,
+    subject: "Verify your email to create " + safeCompany + " on ManageOS",
+    text: [
+      "You started creating a company workspace on ManageOS for " + safeCompany + ".",
+      "Confirm that you own this email address to activate the company.",
+      "This private, single-use verification link expires in 24 hours:",
+      url.toString(),
+      "If you did not request this, ignore this email. No company has been created."
+    ].join("\n\n"),
+    idempotencyKey: "manageos-owner-verification-" + registrationId
+  });
+}
+
+module.exports = {
+  configured, sendPasswordResetEmail, sendInvitationEmail, sendCompanyVerificationEmail
+};
