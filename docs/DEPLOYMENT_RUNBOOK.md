@@ -1,60 +1,152 @@
-# ManageOS — single-origin deployment runbook
+# ManageOS — live operations and release runbook
 
-**State:** Configuration prepared; NOT deployed. The `render.yaml` blueprint uses Render's **Free** web plan. There is no paid Render requirement. Free hosting sleeps when idle; this is acceptable for a carefully presented portfolio demo but is **not** customer-grade availability. Do not expose real customer data until all production gates pass.
+**Updated:** October 16, 2026
+**Status:** The application is publicly deployed and its core journeys have
+passed live API and browser checks. **It is not yet approved for real customer
+onboarding or guaranteed availability.**
 
-## Why one origin
-Express serves `/api/*` and the built React SPA from the same hostname. The browser uses `/api` by default, so HTTP-only session and CSRF cookies stay first-party. Refreshing `/app/projects/:id` serves `index.html` rather than a 404. Unknown `/api/*` paths remain JSON 404s.
+## Current production
 
-Local development is unchanged: Vite proxies `/api` to the Express server on port 5000.
+- **URL:** https://manageos.onrender.com
+- **Application:** React SPA and Express REST API served from the same origin.
+  Frontend uses relative `/api`; server-side PostgreSQL sessions and
+  first-party HTTP-only cookies remain the production authentication model.
+- **Hosting:** Render web service `manageos`, region Frankfurt, **Free** plan,
+  manual deployments. Do not upgrade to paid or enable automatic deployments
+  without explicit authorization.
+- **Database:** Neon project `manageos` (winter-fire-47036404), **main** branch
+  (`br-royal-forest-za071sdz`), PostgreSQL 17. All 39 migrations applied.
+- **File storage:** Private Supabase `manageos-files` bucket, server-side
+  provider credentials only. Uploaded file metadata and deletion retries live
+  in PostgreSQL. Local upload folders are never used in production.
+- **Development database:** Independent Neon `development` branch
+  (`br-proud-silence-zay9822j`). Created October 16 from the main branch.
+  It has all 39 migrations but is **not** connected to the live Render
+  service. It initially contains a copy of the fictional Tidepath test data;
+  never use real customer personal data as development fixtures.
+- **Recovery:** Neon Free includes a short restore history (the project's
+  configuration reports six hours). Manual snapshot
+  `snap-bitter-cake-zacdj7a1` created October 16 on the production branch
+  (`ManageOS production baseline - 2026-10-16`).
+  **No recurring database backup is active yet**.
+- **Monitoring:** A ChatGPT daily conditional health watch checks
+  `/api/ready` and the homepage, allowing for Render Free cold starts;
+  it notifies only for persistent failures. Independent GitHub production
+  smoke checks are also available.
+- **Portfolio recruiter demo:** Removed from production. Source is archived
+  on the `archive/portfolio-recruiter-demo` GitHub branch; demo functionality
+  must only be built into the separate portfolio project. The fictional
+  Tidepath tenant currently remains in the production database without
+  a public entry point; remove or migrate it before real customer onboarding
+  with explicit deletion approval.
 
-## Deployment configuration (not an instruction to deploy yet)
-The checked-in root `render.yaml` builds both packages and starts `backend/server.js`. It selects Render's `free` web-service plan (no subscription), disables automatic deployment and checks PostgreSQL at `/api/ready`. Free web services suspend after approximately 15 minutes of inactivity and may take about one minute to wake up. They have an ephemeral filesystem: document uploads **must** be in private persistent storage, not local files.
+## Production release process
 
-Render's pre-deploy migration command is available only on paid web services. Our free-plan strategy is a separately authorized, manually triggered GitHub Actions migration workflow, run against an isolated demo database before each approved deployment. Never run migrations from the Render startup command on every wake-up.
+1. Merge only reviewed changes with green CI: backend tests, frontend
+   lint/build, PostgreSQL integration, Chromium E2E and artifact verification.
+2. Develop and test schema changes against the **development** database branch
+   first, using its own privately obtained Neon connection string.
+3. Create a fresh, independently restorable encrypted backup BEFORE applying
+   production schema migrations. Confirm the encryption key can be recovered
+   without access to GitHub. GitHub Actions should not retain raw SQL dumps.
+4. Apply migrations through the existing controlled GitHub migration workflow.
+   Verify the configured connection string points at the intended branch
+   before using it. Never apply migrations automatically at process startup.
+5. Trigger an approved manual Render deployment, and wait until its commit
+   is live. Check `GET /api/ready` returns `status=ok`,
+   `database=connected`, `storage=configured`. Also test `/`,
+   `/login`, registration/authentication, tenant isolation, a real
+   upload/download/delete, and the private workspace.
+6. On failure: stop rollout, inspect structured/error logs for the failed
+   deployment and revert to the previous working Render deployment when
+   compatible with the current schema. Database migration rollbacks need
+   explicit verification; a code rollback alone cannot undo a migration.
 
-On the Render Dashboard after the release blockers are resolved, connect the private repository, choose the Blueprint, verify the service is marked **Free** (not paid), and provide these secrets/settings privately:
+## Readiness checks and expected behavior
 
-- `DATABASE_URL` — managed PostgreSQL connection string with TLS parameters (e.g. `sslmode=require`), never a local database address.
-- `PUBLIC_APP_URL` — exact HTTPS service origin, e.g. `https://manageos-unique.onrender.com`. Do not include a trailing slash.
-- `RESEND_API_KEY`, `RESEND_FROM_EMAIL` — verified sender credentials. Real delivery has not been tested.
-- `FILE_STORAGE_BACKEND=supabase` — private durable object storage; production rejects ephemeral local storage.
-- `SUPABASE_URL` — project API URL (`https://<project-ref>.supabase.co`).
-- `SUPABASE_STORAGE_BUCKET=manageos-files` — existing **private** bucket name.
-- `SUPABASE_SECRET_KEY` — Supabase server-only `sb_secret_...` API key, never exposed to the browser, frontend Vite variables or commits. Unlike publishable keys, secret keys bypass Storage RLS. ManageOS's backend performs all company/project permission checks first.
-- `NODE_ENV=production` is set by the Blueprint. Leave `FRONTEND_URL` unset for a single-origin frontend; the API derives the allowed origin from `PUBLIC_APP_URL`.
-- `VITE_API_BASE_URL` is unnecessary for this deployment; the frontend defaults to `/api`.
+- `/api/health`: process liveness; **not a database readiness guarantee**.
+- `/api/db-test`: PostgreSQL connection test; avoid publishing diagnostics
+  or secrets.
+- `/api/ready`: PostgreSQL connectivity and production storage configuration;
+  503 when unavailable. Render health check path should be set manually in
+  the actual service's **Settings → Health Checks** to `/api/ready`.
+  Note: `render.yaml` defines it, but the current manually created service
+  has an empty HTTP health check setting (TCP-only checks).
+- `/api/auth/me`: HTTP 401 without a valid session; unknown demo API is 404.
+- Free Render can idle after approximately 15 minutes and take about a minute
+  to cold-start. This is **not** a production uptime guarantee. Do not claim
+  paid-tier SLA, durable on-instance storage or zero-downtime always-on service.
 
-The React build needs dev build tools even when `NODE_ENV=production`, hence the Blueprint's `npm ci --include=dev --prefix frontend`. Backend runtime dependencies are installed separately. Never commit database URLs, credentials or personal tokens.
+## Encrypted off-provider backups — prepared, activation pending
 
-## Release-blocker gates (P0, in order)
-1. **Production bundle:** Five CI jobs pass, including the production artifact smoke test for HTML deep links and JSON API 404s.
-2. **Durable file storage:** A private Supabase Storage adapter now supports authenticated server-side upload/download/delete (10 MB max), with local storage limited to development/test. The existing PostgreSQL authorization checks still gate file access. Migration 039 and the daily cleanup workflow retain and retry physical deletions after provider failures. A **real provider verification** and Render redeploy test are still required before production: run the manual `Verify private ManageOS Supabase Storage` workflow after adding GitHub secrets. Do not make the bucket public.
-3. **Security:** The October 12 backend advisories for proxy-addr and brace-expansion were patched and CI now enforces high/critical production audits. Complete a separate authorization/session security review, prevent excessive free-tier traffic, and revisit distributed rate limiting before multi-instance production use.
-4. **Email:** Verify Resend domain, real invitation/password-reset delivery, bounce/failure behavior and durable retry/outbox policy.
-5. **Database:** Backups + restore drill, migration dry-run on staging, rollback plan, DB connection TLS and least-privilege credentials.
-6. **Operational readiness:** Health monitoring, structured logs without secrets, alerts, manual accessibility check and a signed-in role-by-role staging smoke test.
-7. **Demo release:** Only after gates 1–6; use isolated seeded demonstration accounts in a separate company/tenant and set data reset policies. Keep Render on the free plan. The future portfolio website itself should live on free static hosting (e.g. Cloudflare Pages) and provide instant case-study screenshots/video while the live demo wakes. Do not pretend the free live backend is always-on.
+Workflow: `.github/workflows/encrypted-backup.yml`.
+It is intentionally **manual-only**, not recurring, until a separate
+encryption key has been configured and a real restoration is verified.
 
-## Zero-cost recruiter experience
-- **Portfolio landing page:** Free static hosting, so the recruiter sees the problem, architecture, engineering evidence, screenshots and a short walkthrough instantly. No paid service required to view your work.
-- **Live demo:** The optional Render Free demo is launched separately, with clear startup messaging and an honest retry mechanism. It may need about a minute after idle; never imply otherwise.
-- **Database:** Prefer free, managed PostgreSQL with usage limits and backup/export discipline; avoid Render Free Postgres for long-lived portfolios because its free databases expire after 30 days.
-- **Storage:** Supabase Storage Free includes a limited storage quota and can pause inactive free projects. The private `manageos-files` bucket has been created in the user account; no real object verification has yet been performed. Monitor quotas from the dashboard and do not enable Pro or overage spending.
-- **No unintended charges:** Do not enable a paid plan, create billed resources or sync a Blueprint before reviewing every service plan. If a payment method is present, monitor quota/overages.
+1. On your own trusted computer, generate a **random 32-byte key** in
+   PowerShell (do not paste the result into ChatGPT):
+   ```powershell
+   $bytes = New-Object byte[] 32
+   [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+   [Convert]::ToHexString($bytes).ToLowerInvariant()
+   ```
+2. Store that same key in a password manager **outside GitHub**, with
+   offline recovery. An encrypted database dump is useless if the key
+   cannot be recovered.
+3. In the private ManageOS repository, create GitHub Actions secret
+   `MANAGEOS_BACKUP_ENCRYPTION_KEY` containing the exact 64 hex characters.
+   Reuse existing `MANAGEOS_DEMO_DATABASE_URL` only because it currently
+   connects to this project's live Neon main database. Rename the secret
+   deliberately later to `MANAGEOS_PRODUCTION_DATABASE_URL` after updating
+   all dependent workflows; don't silently replace it.
+4. Actions → **Encrypted production database backup** → Run workflow.
+   The runner uses PostgreSQL 17 `pg_dump --format=custom`, validates
+   `pg_restore --list`, encrypts with authenticated AES-256-GCM, verifies
+   decryption and uploads **only the encrypted artifact**, retained 14 days.
+   The unencrypted dump is removed from the ephemeral runner.
+5. Download the encrypted artifact to a trusted machine and verify the
+   decrypt command can recover a PostgreSQL custom dump. Never upload the
+   plaintext to public GitHub artifacts or commit it to the repository:
+   ```powershell
+   $env:MANAGEOS_BACKUP_ENCRYPTION_KEY = Read-Host "Backup key"
+   node backend/scripts/backupCrypto.js decrypt production.dump.enc restored.dump
+   Remove-Item Env:MANAGEOS_BACKUP_ENCRYPTION_KEY
+   ```
+6. Restore to a **new isolated Neon test branch** first and verify the data
+   using `pg_restore`. Do not overwrite production during a drill. Only
+   after a verified restore, add a recurring scheduled backup trigger with
+   quota and retention review.
 
-## Cutover checks (after the gates)
-- HTTPS /, /login, /app/overview (with login), /api/health, /api/ready, /api/auth/csrf.
-- Refresh a protected nested URL: redirect to login when unauthenticated, keep deep link after sign-in.
-- Create and review work, invite employee via real email, reset password, upload/download a file, verify tenant isolation and safe errors.
-- Review health checks and logs; keep automatic deployments disabled until production migration/rollback discipline is established.
+**Separate concern:** This database export does not back up the bytes in the
+private Supabase bucket, only PostgreSQL file references. Plan independent
+storage-object backup/restore before onboarding real customers.
 
-## Connect the existing private Supabase Storage bucket
+## Email — implementation ready, live provider not validated
 
-1. In Supabase, open the ManageOS project and confirm **Storage → manageos-files** remains marked **Private**.
-2. Open **Project Settings → API Keys** (or the project's **Connect** dialog). Find the **Secret keys** section. Create or reveal a new **server-side secret key** beginning with `sb_secret_`. Do **not** use the publishable/anon key and do **not** paste the secret in a chat, pull request, screenshot or frontend configuration.
-3. In the GitHub ManageOS repository, open **Settings → Secrets and variables → Actions** and configure `MANAGEOS_SUPABASE_URL` and `MANAGEOS_SUPABASE_SECRET_KEY`. The project URL is not confidential but the secret key is. These secret settings should be created on the default branch for manual workflow dispatch; do not put secrets in repository files.
-4. After this PR is reviewed/merged (and the manual workflow is available), run **Actions → Verify private ManageOS Supabase Storage → Run workflow**. It creates a random small text file inside the private bucket, reads and deletes it, and confirms its absence.
-5. Later, when we set up Render Free, configure `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as Render *secret environment variables*. The Render Blueprint sets `FILE_STORAGE_BACKEND=supabase` and bucket `manageos-files`.
-6. The periodic cleanup workflow also needs `MANAGEOS_DEMO_DATABASE_URL` to reconnect to the existing ManageOS PostgreSQL database. This is separate from Supabase Storage; there is no reason to move the ManageOS database to Supabase.
+- The backend's Resend adapter sends invitations and one-time password reset
+  links. Reset tokens are hashed, expire after 30 minutes, have per-account
+  cooldowns, and revoke existing sessions on password change.
+- Production requires **verified sending domain**, `RESEND_API_KEY`,
+  `RESEND_FROM_EMAIL`, and `PUBLIC_APP_URL` (already set for the app).
+  Do not print secrets or commit them to GitHub. The sending address MUST
+  belong to a verified domain. Never use `manageos.example` for real email.
+- Configure the two sender credentials privately under
+  Render → ManageOS → Environment. Keep sender settings out of Vite build
+  variables and frontend JavaScript.
+- Test a real invitation from an authorized owner to a real inbox, the
+  invitation acceptance flow, password recovery, token expiration, resend
+  throttling, and undeliverable/bounced mail. Test without revealing
+  whether an email is registered.
+- Provider success is not the same as mailbox delivery. Durable outbox/retry,
+  bounce handling and operational alerts are not yet complete.
 
-**Invariant:** Passing CI proves code-level behavior, not actual provider connectivity. The Supabase Storage adapter is covered by mocked HTTP contract tests. Live upload/download/delete, private-bucket enforcement, file persistence after Render restarts, error handling and actual resource quotas must be verified before a real customer release. A transactionally written PostgreSQL cleanup outbox with retry handles failures in object deletion. Failed uploads whose rollback also fails still require operational reconciliation.
+## Hard requirements before accepting live customer data
+
+- Verified Resend domain and real end-to-end delivery.
+- Independent recurring encrypted backup and successful restore drill;
+  backups of Supabase objects as well as Neon database records.
+- Security review for tenant/function/object authorization and sessions.
+- Robust telemetry and alerts, independent error tracking, incident response.
+- Confirm expected Render/Neon Free plan downtime and rate/usage limits.
+  Upgrade only with explicit budget approval if customer availability requires it.
+- Accessibility and user acceptance tests across roles and devices.
