@@ -37,8 +37,8 @@ function Home() {
                 Create your workspace
               </Link>
 
-              <Link to="/product" className="home-secondary">
-                See the product
+              <Link to="/demo" className="home-secondary">
+                Explore the live demo
                 <span aria-hidden="true">↗</span>
               </Link>
             </div>
