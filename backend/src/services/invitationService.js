@@ -190,12 +190,10 @@ async function createUserInvitation(
       `
       SELECT id
       FROM users
-      WHERE company_id = $1
-        AND LOWER(email) = $2
+      WHERE LOWER(email) = $1
       LIMIT 1
       `,
       [
-        currentUser.company_id,
         normalizedEmail
       ]
     );
