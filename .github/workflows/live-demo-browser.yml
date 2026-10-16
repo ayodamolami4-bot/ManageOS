@@ -1,0 +1,92 @@
+name: ManageOS public recruiter demo smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/live-demo-browser.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    name: Public read-only demo security and browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false @playwright/test@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Assert safe API and explore real populated UI
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium, expect } from "@playwright/test";
+          const base="https://manageos.onrender.com";
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage({viewport:{width:1365,height:900},acceptDownloads:true});
+          const errors=[];
+          page.on("pageerror",e=>errors.push(e.message));
+          try {
+            const api=page.request;
+            let resp=await api.get(base+"/api/demo/overview",{timeout:90000});
+            console.log("Demo endpoint:",resp.status());
+            if(resp.status()!==200)throw Error("Demo endpoint unavailable");
+            const raw=await resp.text();
+            const {data}=JSON.parse(raw);
+            if(!data.fictional||data.mode!=="public-read-only")throw Error("Demo security metadata missing");
+            if(data.company!=="Tidepath Logistics (Demo)")throw Error("Wrong company");
+            for(const [key,n] of [["projects",5],["goals",4],["tasks",15],["people",7],["files",3]]) {
+              if(data[key]?.length!==n)throw Error("Unexpected "+key+" count");
+            }
+            if(/password_hash|storage_key|csrf_token|session_id|@tidepath-demo\.example\.com/i.test(raw))
+              throw Error("Private data leaked into public response");
+            console.log("PASS: Strict demo tenant and safe public fields verified");
+            resp=await api.get(base+"/api/projects",{timeout:25000});
+            if(resp.status()!==401)throw Error("Private API unexpectedly accessible without login");
+            resp=await api.post(base+"/api/demo/overview",{data:{hack:true}});
+            if(![403,405].includes(resp.status()))throw Error("Demo accepted mutation");
+            resp=await api.get(base+"/api/demo/files/00000000-0000-4000-8000-000000000000");
+            if(resp.status()!==404)throw Error("Unapproved file was reachable");
+            console.log("PASS: Private API remains private; demo mutations and arbitrary file access blocked");
+            const response=await page.goto(base+"/demo",{waitUntil:"domcontentloaded",timeout:120000});
+            if(response.status()!==200)throw Error("Demo page failed HTTP");
+            await expect(page.getByRole("heading",{name:/Work in motion/i})).toBeVisible({timeout:30000});
+            await expect(page.getByText("Tidepath Logistics").first()).toBeVisible();
+            await page.getByRole("button",{name:/Projects/}).first().click();
+            await expect(page.getByRole("heading",{name:/Projects with purpose/})).toBeVisible();
+            await page.getByRole("button",{name:/Customer ETA Notifications.*active/i}).first().click();
+            await expect(page.getByText("Customer ETA Notifications").last()).toBeVisible();
+            console.log("PASS: Project drilldown renders");
+            await page.getByRole("button",{name:/Work/}).first().click();
+            await expect(page.getByRole("heading",{name:/Tasks, updates, decisions/})).toBeVisible();
+            await page.getByRole("textbox",{name:"Search work"}).fill("callback");
+            await expect(page.getByText(/callback script/i).first()).toBeVisible();
+            await page.getByRole("textbox",{name:"Search work"}).fill("");
+            console.log("PASS: Live task search and detail controls");
+            await page.getByRole("button",{name:/Files/}).first().click();
+            await expect(page.getByRole("heading",{name:/Evidence, not decoration/i})).toBeVisible();
+            const sample=page.getByRole("link",{name:/Download sample/}).first();
+            const downloadPromise=page.waitForEvent("download");
+            await sample.click();
+            const download=await downloadPromise;
+            if(!download.suggestedFilename().endsWith(".txt"))throw Error("Sample document missing");
+            console.log("PASS: Public allowlisted sample file download");
+            await page.setViewportSize({width:390,height:844});
+            await page.getByRole("button",{name:/Organization/}).first().click();
+            await expect(page.getByRole("heading",{name:/Work has an owner/})).toBeVisible();
+            if(errors.length)throw Error("Browser exceptions: "+errors.slice(0,2).join("; "));
+            console.log("PASS: Mobile demo explorer and React runtime");
+          }finally{await browser.close();}
+          NODE
