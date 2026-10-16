@@ -1,47 +1,71 @@
-# ManageOS — release readiness and unfinished work
+# ManageOS — release readiness
 
-This file is a working engineering checklist, **not** a claim that ManageOS is released.
+Updated October 16, 2026. This is a production-engineering checklist,
+not a statement that the app is ready for paying customers.
 
-## Shipped in the main branch before this feature
-- Company creation and session-cookie authentication; RBAC with company scoping.
-- Organization memberships, goal/project/task lifecycle, project leads and scoped team roles.
-- Assignment/reassignment, employee submissions, review and rework, blockers/requests, activities and audit.
-- Frontend API integration, PostgreSQL integration, four-role Chromium journey, validation and CI.
+## Built, deployed, and verified
 
-## Implemented in draft PR #3 (not yet deployed)
-- Expiring one-use hashed reset tokens and database migration 037.
-- 30-minute link, 5-minute per-account throttle, IP throttle, no existence disclosure in API response.
-- Email provider adapter via Resend REST implemented; real sender domain, secrets and inbox delivery still need verification.
-- Password reset invalidates all sessions and records a company-scoped audit event.
-- Replace placeholder auth forms with real POST, validation and feedback.
-- Present the **actual tenant name** rather than a generic workspace string.
-- Maintain unique ManageOS editorial design and clear application interaction states, not generic AI UI patterns. See DESIGN_QUALITY_STANDARD.md.
+- Multi-tenant REST backend (Express, PostgreSQL and server-side sessions),
+  company creation, login/logout, session revocation, CSRF, role/permission
+  checks and role-based work management.
+- React authenticated workspaces: organization, people, goals, projects,
+  milestones, tasks, assignments, submissions/reviews, requests, blockers,
+  files, notifications, activity and permission-protected audit logs.
+- Render Free web service at https://manageos.onrender.com backed by
+  Neon PostgreSQL 17 and a private Supabase Storage bucket.
+- 39 production migrations, independent CI including backend, frontend,
+  database integration, Chromium end-to-end workflows and production bundle.
+- Live browser journeys covering registration, login, team/work operations
+  and authenticated private file upload/download/delete.
+- Recruiter demo prototype archived on `archive/portfolio-recruiter-demo`,
+  removed from the real application. Main database still holds a fictional
+  company; deletion or migration needs explicit authorization.
+- Independent Neon development branch (br-proud-silence-zay9822j), with
+  production still on br-royal-forest-za071sdz.
+- Manual Neon production snapshot `snap-bitter-cake-zacdj7a1`, created
+  October 16. Free plan's short restore history remains enabled.
+- Daily conditional monitoring of public homepage and database/storage
+  readiness; persistent failures prompt an alert.
+- PostgreSQL pool has bounded connection/query waits and idle-client
+  error handling. Resend adapter has dedicated configuration validation,
+  invitation idempotency and automated provider-contract tests.
 
-## Production bundle and deploy preparation (October 12)
-- React SPA and Express API can share one origin, including browser deep links and JSON API 404s.
-- Frontend now uses relative `/api` by default, avoiding production localhost URLs and cross-site session cookies.
-- Backend and migrations accept managed PostgreSQL `DATABASE_URL` while local `DB_*` configuration remains available.
-- Database-backed `/api/ready` endpoint for release health checks.
-- Render **Free** Blueprint (no paid service or pre-deploy feature), separate manual demo-database migrations and documented zero-cost recruiter cutover; no production service or database was modified.
-- Production artifact CI smoke job added; see `DEPLOYMENT_RUNBOOK.md` for ordered release gates and status.
+## Prepared but not activated
 
-## October 12 — Supabase Storage integration for zero-cost demo
-- User created a private Supabase Storage bucket named `manageos-files`.
-- Backend adds server-side Supabase REST adapter for file upload, download and removal; production selects `FILE_STORAGE_BACKEND=supabase` by default. Company/project authorization, file metadata and deletion-outbox flows remain in ManageOS PostgreSQL.
-- Render Free Blueprint and GitHub Actions workflows updated to use `SUPABASE_URL`/`SUPABASE_SECRET_KEY` (Render) and `MANAGEOS_SUPABASE_URL`/`MANAGEOS_SUPABASE_SECRET_KEY` (GitHub), respectively. Never commit or share secret keys.
-- Unit/API-mock integration tests added, but real private-bucket verification is pending; see `DEPLOYMENT_RUNBOOK.md`.
+- `.github/workflows/encrypted-backup.yml` for manual PostgreSQL 17
+  encrypted logical exports. Requires independently saved
+  `MANAGEOS_BACKUP_ENCRYPTION_KEY` in GitHub Actions secrets, an actual
+  successful run and an isolated restore drill. No nightly backups are
+  active yet, and the Supabase file objects require independent backup.
+- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` require a verified sender
+  domain and private Render environment configuration. The current user
+  account has not yet supplied these values. We cannot claim invitation
+  or password-reset deliverability.
+- Render's live service currently uses TCP health checks, even though
+  `render.yaml` declares HTTP `/api/ready`. Update Health Checks in
+  the actual Render service settings.
+- The development branch is separate at the database level but has no
+  dedicated staging Render web service. A local test server can use its
+  branch-specific connection string; keep production URLs/keys separate.
 
-## Required before real customers
-- Configure verified sending domain, HTTPS public URL, Resend API key. Test actual deliverability and recovery failure handling.
-- Review rate limiting for multiple backend instances: in-memory IP rate limits must move to a distributed store or gateway.
-- Production email queue/outbox and retry strategy to protect external sends from worker/network failures.
-- Secure production PostgreSQL, automated migrations, backup and restore drills, migrations rollback plan.
-- Private Supabase Storage adapter and durable deletion retry now implemented; require actual private-bucket round trip, credential setup, persisted-file restart test and upload-failure reconciliation before release.
-- Review deletion lifecycle of stored files, MIME/content validation, antivirus scanning, size limits and access controls.
-- Complete tenancy and role-based authorization regression matrix, security review and external review of account/session recovery.
-- Accessibility audit: keyboard navigation, contrast, mobile user flows, screen readers and reduced motion.
-- Structured logs, error reporting, metrics, health endpoints, uptime alerts and rate limits.
-- Stage and deploy through CI/CD; separate demo tenant and account isolation will be built **after** product completion, when the portfolio website is created.
+## Still required before real customers
 
-## Release invariant
-Do not claim production-ready solely from green automated tests. Merge completed features after CI/review; deploy only after the operational and security tasks are verified.
+1. Configure a verified sender domain and private Resend credentials.
+   Test delivery and failure behavior in a real inbox, including
+   invitations, account recovery, bounces and safe error responses.
+2. Run encrypted backups, verify restoration to an isolated Neon branch,
+   establish a recurring schedule, and back up Supabase objects too.
+3. Complete manual security review: cross-company authorization,
+   resource-permission matrix, session lifecycle, file access, tenant
+   deletion and secure monitoring. Address malware scanning and
+   uploaded-file content safeguards.
+4. Test migrations with rollback drills against development, then apply
+   production migrations only with backups and controlled deployment.
+5. Configure HTTP health checks and external error/uptime monitoring;
+   establish incident and rollback procedures.
+6. Accessibility and load tests, mobile role journeys, manual QA.
+7. Confirm acceptable cost, quotas and availability. Render Free and
+   Neon Free are useful prototypes but lack production uptime SLAs.
+   Never upgrade or incur charges without consent.
+
+Refer to `docs/DEPLOYMENT_RUNBOOK.md` for operator procedures.
