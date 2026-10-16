@@ -92,7 +92,7 @@ jobs:
             await expect(guide).toHaveCount(0);
             await page.getByRole("button",{name:/Take the guided product tour/}).click();
             await expect(guide.getByRole("heading",{name:/Start with the operating picture/})).toBeVisible();
-            await guide.getByRole("button",{name:/Explore freely/}).click();
+            await guide.getByRole("button",{name:/Exit guided tour/}).click();
             await expect(guide).toHaveCount(0);
             current=await api.get(base+"/api/auth/me");
             if(current.status()!==401)throw Error("Guided demo created a private session");
