@@ -64,7 +64,8 @@ export default function DemoExplorer() {
     )
   ), [data.tasks, filter, search]);
   const project = data.projects.find(item => item.id === selectedProject) || data.projects[0];
-  const task = data.tasks.find(item => item.id === selectedTask) || visibleTasks[0];
+  // Never show an out-of-filter task in the detail pane after search or status changes.
+  const task = visibleTasks.find(item => item.id === selectedTask) || visibleTasks[0];
   const counts = {
     active: data.projects.filter(item => item.status === "ACTIVE").length,
     completed: data.tasks.filter(item => item.status === "COMPLETED").length,
