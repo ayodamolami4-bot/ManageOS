@@ -183,7 +183,7 @@ async function createUserInvitation(
 
   /**
    * Do not invite an email that is
-   * already registered in this company.
+   * registered in any company. Login email is global.
    */
   const existingUserResult =
     await pool.query(
