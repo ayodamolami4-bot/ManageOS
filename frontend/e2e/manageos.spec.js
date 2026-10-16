@@ -27,7 +27,7 @@ async function inviteAndJoin(owner, invitedPage, { email, firstName, role, unitN
   const href = await inviteLink.getAttribute("href");
   await invitedPage.goto(href);
   await expect(invitedPage.locator(".invite-verified-details strong")).toBeVisible();
-  await expect(invitedPage.locator(".invite-verified-details dd").first()).toContainText(role);
+  await expect(invitedPage.locator(".invite-verified-details dd").first()).toContainText(role.replaceAll("_", " "));
   if (unitName) await expect(invitedPage.locator(".invite-verified-details dd").nth(1)).toHaveText(unitName);
   await invitedPage.locator("#invite-first").fill(firstName);
   await invitedPage.locator("#invite-last").fill("Tester");
