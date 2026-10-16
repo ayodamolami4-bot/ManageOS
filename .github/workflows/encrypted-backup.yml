@@ -1,0 +1,64 @@
+name: Encrypted production database backup
+
+# Manual until the owner has set the independent backup encryption key and
+# verified one restore. Do not enable daily scheduling before that gate passes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  encrypted-backup:
+    name: Export and encrypt Neon PostgreSQL backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.MANAGEOS_DEMO_DATABASE_URL }}
+      MANAGEOS_BACKUP_ENCRYPTION_KEY: ${{ secrets.MANAGEOS_BACKUP_ENCRYPTION_KEY }}
+      BACKUP_DIR: ${{ runner.temp }}/manageos-backup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify backup prerequisites without logging credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_URL" || { echo "::error::Neon database credential not configured"; exit 1; }
+          test -n "$MANAGEOS_BACKUP_ENCRYPTION_KEY" || { echo "::error::Backup encryption key not configured"; exit 1; }
+          test "${#MANAGEOS_BACKUP_ENCRYPTION_KEY}" -eq 64 || { echo "::error::Backup encryption key must be 64 hex characters"; exit 1; }
+          umask 077
+          mkdir -p "$BACKUP_DIR"
+      - name: Produce a consistent PG17 backup and verify its catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          docker run --rm \
+            --volume "$BACKUP_DIR:/export" \
+            --env DATABASE_URL \
+            postgres:17-alpine \
+            sh -ec 'pg_dump --dbname="$DATABASE_URL" --format=custom --no-owner --no-acl -f /export/production.dump && pg_restore --list /export/production.dump >/dev/null'
+      - name: Encrypt, decrypt-test, and erase temporary plaintext
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$BACKUP_DIR/production.dump" "$BACKUP_DIR/verified.dump"' EXIT
+          node backend/scripts/backupCrypto.js encrypt "$BACKUP_DIR/production.dump" "$BACKUP_DIR/production.dump.enc"
+          node backend/scripts/backupCrypto.js decrypt "$BACKUP_DIR/production.dump.enc" "$BACKUP_DIR/verified.dump"
+          docker run --rm --volume "$BACKUP_DIR:/export:ro" postgres:17-alpine \
+            pg_restore --list /export/verified.dump >/dev/null
+          echo "Encrypted backup and catalog validation passed."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-manageos-database-backup
+          path: ${{ runner.temp }}/manageos-backup/production.dump.enc
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
+      - name: Verify plaintext was erased on ephemeral runner
+        shell: bash
+        run: |
+          test ! -e "$BACKUP_DIR/production.dump" && test ! -e "$BACKUP_DIR/verified.dump"
