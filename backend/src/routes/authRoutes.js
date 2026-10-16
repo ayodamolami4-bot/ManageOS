@@ -24,7 +24,8 @@ const { verifyCompanyRegistrationSchema } = require("../validators/companyVerifi
 
 const {
   loginRateLimiter,
-  registrationRateLimiter
+  registrationRateLimiter,
+  companyVerificationRateLimiter
 } = require("../middleware/rateLimiters");
 
 const {
@@ -57,7 +58,7 @@ router.post(
 
 router.post(
   "/verify-company",
-  registrationRateLimiter,
+  companyVerificationRateLimiter,
   validateBody(verifyCompanyRegistrationSchema),
   verifyCompany
 );
