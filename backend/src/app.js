@@ -32,6 +32,7 @@ const fileRoutes = require("./routes/fileRoutes");
 const userRoutes = require("./routes/userRoutes");
 const invitationRoutes = require("./routes/invitationRoutes");
 const auditLogRoutes = require("./routes/auditLogRoutes");
+const publicDemoRoutes = require("./routes/publicDemoRoutes");
 
 const app = express();
 
@@ -189,6 +190,9 @@ app.get("/api/ready", async (req, res) => {
     res.status(503).json({ status: "unavailable" });
   }
 });
+
+/* A separate, GET-only, strictly allowlisted fictional recruiter preview. */
+app.use("/api/demo", publicDemoRoutes);
 
 /*
  * Authentication.
