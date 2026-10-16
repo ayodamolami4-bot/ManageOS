@@ -167,6 +167,13 @@ async function updateUserById(
       });
     }
 
+    if (error.message === "EMAIL_CHANGE_REQUIRES_VERIFICATION") {
+      return res.status(409).json({
+        error: {code:"EMAIL_CHANGE_REQUIRES_VERIFICATION",
+          message:"Change your email from Account Settings and verify the new address."}
+      });
+    }
+
     if (
       error.message ===
       "EMAIL_ALREADY_IN_USE"
