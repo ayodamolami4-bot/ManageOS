@@ -81,7 +81,8 @@ async function sendCompanyVerificationEmail({ to, token, companyName, registrati
   if (!config) throw new Error("EMAIL_NOT_CONFIGURED");
   const url = new URL("/verify-email", config.origin);
   url.searchParams.set("token", token);
-  const safeCompany = String(companyName || "your company").slice(0, 200);
+  const safeCompany = String(companyName || "your company")
+    .replace(/[\\r\\n]+/g, " ").trim().slice(0, 120);
   return sendEmail({
     to,
     subject: "Verify your email to create " + safeCompany + " on ManageOS",
