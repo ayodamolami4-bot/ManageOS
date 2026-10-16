@@ -1,0 +1,208 @@
+name: ManageOS live authenticated browser
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/live-auth-browser.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manageos-live-auth-browser
+  cancel-in-progress: false
+
+jobs:
+  browser:
+    name: Real hosted registration and workspace journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false @playwright/test@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Exercise live registration and authenticated browser controls
+        env:
+          LIVE_BASE_URL: https://manageos.onrender.com
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium, expect } from "@playwright/test";
+          import { randomBytes } from "node:crypto";
+          import { Buffer } from "node:buffer";
+
+          const origin = process.env.LIVE_BASE_URL;
+          const id = String(process.env.GITHUB_RUN_ID) + "-" + Date.now().toString(36);
+          const companyName = "ManageOS Browser QA " + id;
+          const email = "manageos-ui-" + id + "@example.com";
+          const password = randomBytes(18).toString("hex") + "Aa!";
+          const unitName = "Operations " + id;
+          const goalName = "Verify service reliability " + id;
+          const projectName = "Customer delivery " + id;
+          const taskName = "Review live onboarding " + id;
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({ viewport: { width: 1350, height: 850 }, acceptDownloads: true });
+          const page = await context.newPage();
+          const pageErrors = [];
+          page.on("pageerror", error => pageErrors.push(error.message));
+          const step = message => console.log("PASS: " + message);
+          async function goto(path) {
+            const response = await page.goto(origin + path, { waitUntil: "domcontentloaded", timeout: 120000 });
+            if (response.status() !== 200) throw new Error(path + " returned HTTP " + response.status());
+            await page.locator("#root").waitFor();
+          }
+          async function checkErrors(label) {
+            if (pageErrors.length) throw new Error(label + " raised uncaught React exceptions: " + pageErrors.slice(0, 2).join("; "));
+          }
+          try {
+            await goto("/api/ready"); // API health before public form workflow
+          } catch {
+            // /api/ready serves JSON and intentionally has no #root.
+            const response = await page.request.get(origin + "/api/ready", { timeout: 120000 });
+            if (response.status() !== 200) throw new Error("Service readiness failed: HTTP " + response.status());
+          }
+          try {
+            await goto("/app/overview");
+            await expect(page).toHaveURL(/\/login$/);
+            step("Protected route redirects unauthenticated browsers");
+
+            await goto("/register");
+            await page.locator("#companyName").fill(companyName);
+            await page.locator("#firstName").fill("Browser");
+            await page.locator("#lastName").fill("Tester");
+            await page.locator("#register-email").fill(email);
+            await page.locator("#register-password").fill(password);
+            await page.locator("#confirm-password").fill("Mismatch12345678");
+            await page.locator('input[type="checkbox"]').check();
+            await page.getByRole("button", { name: /Create ManageOS account/ }).click();
+            await expect(page.getByText(/Passwords do not match/i)).toBeVisible();
+            await expect(page).toHaveURL(/\/register$/);
+            step("Registration form rejects mismatched passwords");
+            await page.locator("#confirm-password").fill(password);
+            await page.getByRole("button", { name: /Create ManageOS account/ }).click();
+            await expect(page).toHaveURL(/\/login$/, { timeout: 30000 });
+            step("Company and owner registered through live React form");
+
+            await page.locator("#email").fill(email);
+            await page.locator("#password").fill(password);
+            await page.getByRole("button", { name: "Sign in to ManageOS" }).click();
+            await expect(page).toHaveURL(/\/app\/overview$/, { timeout: 30000 });
+            await expect(page.getByText("Company Overview").first()).toBeVisible();
+            await expect(page.getByText(companyName).first()).toBeVisible();
+            step("Owner logs into the live workspace and sees correct company");
+            await page.reload();
+            await expect(page.getByText(companyName).first()).toBeVisible();
+            step("HttpOnly session survives page reload");
+
+            await goto("/app/organization");
+            await page.getByRole("button", { name: "Add organization unit" }).click();
+            await page.locator("#unit-name").fill(unitName);
+            await page.locator("#unit-type").fill("Department");
+            await page.getByRole("button", { name: "Create unit" }).click();
+            await expect(page.getByRole("heading", { name: unitName })).toBeVisible();
+            step("Organization unit created through browser");
+
+            await goto("/app/projects");
+            await page.getByRole("button", { name: "Create project" }).first().click();
+            await page.locator("#work-name").fill(projectName);
+            await page.getByRole("button", { name: "Create project" }).last().click();
+            const projectLink = page.getByRole("link", { name: projectName });
+            await expect(projectLink).toBeVisible();
+            const projectHref = await projectLink.getAttribute("href");
+            if (!/^\/app\/projects\/[0-9a-f-]+$/i.test(projectHref)) throw new Error("Invalid project URL");
+            step("Project created and linked to real details route");
+
+            await goto("/app/goals");
+            await page.getByRole("button", { name: "Create goal" }).first().click();
+            await page.locator("#work-title").fill(goalName);
+            await page.getByRole("button", { name: "Create goal" }).last().click();
+            const goalCard = page.locator("article.workspace-data-item").filter({ has: page.getByRole("heading", { name: goalName }) });
+            await expect(goalCard).toBeVisible();
+            await goalCard.getByRole("button", { name: "Linked projects" }).click();
+            await goalCard.locator('select[id^="goal-project-"]').selectOption({ label: projectName });
+            await goalCard.getByRole("button", { name: "Link project" }).click();
+            await expect(goalCard.getByText("Project linked to this goal.")).toBeVisible();
+            step("Goal created and linked to project");
+
+            await goto(projectHref);
+            await expect(page.getByText(goalName)).toBeVisible();
+            step("Project details display linked goal");
+
+            await goto("/app/work");
+            await page.getByRole("button", { name: "Create task" }).first().click();
+            await page.locator("#work-project").selectOption({ label: projectName });
+            await page.locator("#task-title").fill(taskName);
+            await page.getByRole("button", { name: "Create task" }).last().click();
+            await expect(page.getByRole("heading", { name: taskName })).toBeVisible();
+            step("Task created through live work interface");
+
+            await goto("/app/files");
+            await page.locator("#files-project").selectOption({ label: projectName });
+            await page.locator("#files-upload").setInputFiles({
+              name: "live-browser-evidence.png",
+              mimeType: "image/png",
+              buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==", "base64")
+            });
+            await page.getByRole("button", { name: "Upload file" }).click();
+            await expect(page.getByText("File uploaded.")).toBeVisible();
+            const fileEntry = page.locator("article.workspace-data-item").filter({
+              has: page.getByRole("heading", { name: "live-browser-evidence.png" })
+            });
+            await expect(fileEntry).toBeVisible();
+            const downloadPromise = page.waitForEvent("download");
+            await fileEntry.getByRole("link", { name: "Download" }).click();
+            const download = await downloadPromise;
+            if (download.suggestedFilename() !== "live-browser-evidence.png") {
+              throw new Error("Downloaded filename incorrect");
+            }
+            page.once("dialog", dialog => dialog.accept());
+            await fileEntry.getByRole("button", { name: "Delete" }).click();
+            await expect(page.getByText("File deleted.")).toBeVisible();
+            await expect(fileEntry).toHaveCount(0);
+            step("Private file upload, browser download and deletion");
+
+            for (const path of [
+              "/app/overview", "/app/people", "/app/updates",
+              "/app/discussions", "/app/notifications", "/app/activity", "/app/audit"
+            ]) {
+              await goto(path);
+              await expect(page.locator(".app-sidebar")).toBeVisible();
+              await expect(page.getByText(companyName).first()).toBeVisible();
+              await checkErrors(path);
+              step("Authenticated route renders " + path);
+            }
+
+            await page.setViewportSize({ width: 390, height: 844 });
+            await goto("/app/overview");
+            await expect(page.getByText(companyName).first()).toBeVisible();
+            await checkErrors("Mobile width workspace");
+            step("Authenticated overview renders on mobile viewport");
+
+            await page.getByRole("button", { name: "Sign out" }).click();
+            await expect(page).toHaveURL(/\/login$/);
+            await goto("/app/overview");
+            await expect(page).toHaveURL(/\/login$/);
+            step("Logout revokes session and protected route access");
+            await checkErrors("Whole journey");
+            console.log("PASS: All live authenticated React browser checks passed.");
+            console.log("Test data marker (safe): " + companyName);
+          } catch (error) {
+            console.error("LIVE AUTHENTICATED BROWSER FAILED:", error.message);
+            console.error("Test company marker (safe): " + companyName);
+            process.exitCode = 1;
+          } finally {
+            await browser.close();
+          }
+          NODE
