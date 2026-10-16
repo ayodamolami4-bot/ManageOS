@@ -7,7 +7,8 @@ const {
 
 const {
   canViewProject,
-  canManageProject
+  canManageProject,
+  canLinkProjectOrganizationUnit
 } = require("./authorizationService");
 
 async function createNewProject(
@@ -71,7 +72,11 @@ async function getProject(
     );
   }
 
-  return { ...project, can_manage: await canManageProject(user, projectId) };
+  return {
+    ...project,
+    can_manage: await canManageProject(user, projectId),
+    can_link_units: await canLinkProjectOrganizationUnit(user, projectId)
+  };
 }
 
 async function updateExistingProject(
