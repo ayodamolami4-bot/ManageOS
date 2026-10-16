@@ -8,8 +8,10 @@ function readEmailConfig(env = process.env) {
   if (!apiKey.startsWith("re_") || apiKey.length < 8) {
     throw new Error("EMAIL_API_KEY_INVALID");
   }
+  const addressOnly = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+  const displayAddress = /^[^<>\r\n]{1,100}\s+<[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}>$/i;
   if (/[\r\n]/.test(from) || from.length > 240 ||
-      !/^(?:[^<>\r\n]+\s*<)?[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}>?$/i.test(from)) {
+      (!addressOnly.test(from) && !displayAddress.test(from))) {
     throw new Error("EMAIL_SENDER_INVALID");
   }
   let origin;
