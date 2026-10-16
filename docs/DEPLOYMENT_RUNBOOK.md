@@ -28,7 +28,10 @@ onboarding or guaranteed availability.**
   configuration reports six hours). Manual snapshot
   `snap-bitter-cake-zacdj7a1` created October 16 on the production branch
   (`ManageOS production baseline - 2026-10-16`).
-  **No recurring database backup is active yet**.
+  **Daily encrypted logical backups are active in GitHub Actions** (artifact
+  retention 14 days). One export from October 16 was fully restored to a
+  disposable PostgreSQL 17 database; Neon-specific restoration and off-GitHub
+  archival still require an exercise.
 - **Monitoring:** A ChatGPT daily conditional health watch checks
   `/api/ready` and the homepage, allowing for Render Free cold starts;
   it notifies only for persistent failures. Independent GitHub production
@@ -77,11 +80,12 @@ onboarding or guaranteed availability.**
   to cold-start. This is **not** a production uptime guarantee. Do not claim
   paid-tier SLA, durable on-instance storage or zero-downtime always-on service.
 
-## Encrypted off-provider backups — prepared, activation pending
+## Encrypted PostgreSQL backups — daily schedule active
 
 Workflow: `.github/workflows/encrypted-backup.yml`.
-It is intentionally **manual-only**, not recurring, until a separate
-encryption key has been configured and a real restoration is verified.
+It is scheduled daily at 03:31 UTC and also supports manual execution.
+A successful encrypted backup (run 38963022587) and isolated PostgreSQL 17
+restore (run 38963313832) were verified on October 16, 2026.
 
 1. On your own trusted computer, generate a **random 32-byte key** in
    PowerShell (do not paste the result into ChatGPT):
@@ -112,25 +116,27 @@ encryption key has been configured and a real restoration is verified.
    node backend/scripts/backupCrypto.js decrypt production.dump.enc restored.dump
    Remove-Item Env:MANAGEOS_BACKUP_ENCRYPTION_KEY
    ```
-6. Restore to a **new isolated Neon test branch** first and verify the data
-   using `pg_restore`. Do not overwrite production during a drill. Only
-   after a verified restore, add a recurring scheduled backup trigger with
-   quota and retention review.
+6. An isolated disposable PostgreSQL 17 restore already succeeded. For a
+   provider-specific disaster-recovery drill, restore to a **new isolated Neon
+   test branch**, verify records and links, and never overwrite production.
+   GitHub artifacts expire after 14 days; store encrypted copies separately
+   for longer-term retention and monitor scheduled-run failures.
 
 **Separate concern:** This database export does not back up the bytes in the
 private Supabase bucket, only PostgreSQL file references. Plan independent
 storage-object backup/restore before onboarding real customers.
 
-## Email — implementation ready, live provider not validated
+## Email — Google Apps Script active; additional end-to-end QA pending
 
 - The backend's Resend adapter sends invitations and one-time password reset
   links. Reset tokens are hashed, expire after 30 minutes, have per-account
   cooldowns, and revoke existing sessions on password change.
-- Production requires **verified sending domain**, `RESEND_API_KEY`,
-  `RESEND_FROM_EMAIL`, and `PUBLIC_APP_URL` (already set for the app).
-  Do not print secrets or commit them to GitHub. The sending address MUST
-  belong to a verified domain. Never use `manageos.example` for real email.
-- Configure the two sender credentials privately under
+- Production currently uses the **Google Apps Script email adapter**, not
+  necessarily Resend. Company registration verification and authenticated
+  email-change confirmation succeeded in real mailboxes. Keep Apps Script
+  deployment credentials private in Render and enforce Google quota limits.
+  Resend remains an optional adapter requiring a verified sender domain.
+- Configure email provider credentials privately under
   Render → ManageOS → Environment. Keep sender settings out of Vite build
   variables and frontend JavaScript.
 - Test a real invitation from an authorized owner to a real inbox, the
@@ -142,7 +148,7 @@ storage-object backup/restore before onboarding real customers.
 
 ## Hard requirements before accepting live customer data
 
-- Verified Resend domain and real end-to-end delivery.
+- Verified delivery for all account flows, including invites and recovery.
 - Independent recurring encrypted backup and successful restore drill;
   backups of Supabase objects as well as Neon database records.
 - Security review for tenant/function/object authorization and sessions.
