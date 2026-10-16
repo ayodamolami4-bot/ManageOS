@@ -10,19 +10,33 @@ function Invite() {
   const navigate = useNavigate();
   const token = searchParams.get("token") || "";
   const validToken = /^[a-f0-9]{64}$/i.test(token);
-  const [preview, setPreview] = useState(null);
+  const [verifiedPreview, setVerifiedPreview] = useState({ token: "", data: null });
+  const preview = verifiedPreview.token === token ? verifiedPreview.data : null;
   const [previewLoading, setPreviewLoading] = useState(validToken);
   const [previewError, setPreviewError] = useState(validToken ? "" : "Open the unique invitation link sent to your email.");
 
   useEffect(() => {
     let active = true;
-    if (!validToken) return undefined;
+    setVerifiedPreview({ token: "", data: null });
+    if (!validToken) {
+      setPreviewLoading(false);
+      setPreviewError("Open the unique invitation link sent to your email.");
+      return undefined;
+    }
+    setPreviewLoading(true);
+    setPreviewError("");
     post("/invitations/preview", { token })
       .then((response) => {
-        if (active) { setPreview(response.data); setPreviewError(""); }
+        if (active) {
+          setVerifiedPreview({ token, data: response.data });
+          setPreviewError("");
+        }
       })
       .catch((error) => {
-        if (active) { setPreview(null); setPreviewError(apiErrorMessage(error)); }
+        if (active) {
+          setVerifiedPreview({ token: "", data: null });
+          setPreviewError(apiErrorMessage(error));
+        }
       })
       .finally(() => { if (active) setPreviewLoading(false); });
     return () => { active = false; };
