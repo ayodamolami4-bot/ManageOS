@@ -1,6 +1,7 @@
 const {
   canViewProject,
-  canManageProject
+  canManageProject,
+  canLinkProjectOrganizationUnit
 } = require("../services/authorizationService");
 
 async function requireProjectView(
@@ -81,7 +82,30 @@ async function requireProjectManagement(
   }
 }
 
+async function requireProjectUnitLinkManagement(req, res, next) {
+  try {
+    if (!(await canLinkProjectOrganizationUnit(req.user, req.params.projectId))) {
+      return res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "Only Owners and company-wide Managers can link organization units to this project"
+        }
+      });
+    }
+    next();
+  } catch (error) {
+    console.error("Project organization scope authorization failed:", error);
+    res.status(500).json({
+      error: {
+        code: "AUTHORIZATION_FAILED",
+        message: "Unable to verify project organization scope access"
+      }
+    });
+  }
+}
+
 module.exports = {
   requireProjectView,
-  requireProjectManagement
+  requireProjectManagement,
+  requireProjectUnitLinkManagement
 };
