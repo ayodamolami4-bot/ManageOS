@@ -10,35 +10,26 @@ function Invite() {
   const navigate = useNavigate();
   const token = searchParams.get("token") || "";
   const validToken = /^[a-f0-9]{64}$/i.test(token);
-  const [verifiedPreview, setVerifiedPreview] = useState({ token: "", data: null });
-  const preview = verifiedPreview.token === token ? verifiedPreview.data : null;
-  const [previewLoading, setPreviewLoading] = useState(validToken);
-  const [previewError, setPreviewError] = useState(validToken ? "" : "Open the unique invitation link sent to your email.");
+  // Async results are keyed to their token. Stale results never render after
+  // navigation to a different invitation, even before effects run.
+  const [verification, setVerification] = useState({ token: "", data: null, error: "" });
+  const current = verification.token === token;
+  const preview = current ? verification.data : null;
+  const previewLoading = validToken && !current;
+  const previewError = !validToken
+    ? "Open the unique invitation link sent to your email."
+    : current ? verification.error : "";
 
   useEffect(() => {
+    if (!validToken) return undefined;
     let active = true;
-    setVerifiedPreview({ token: "", data: null });
-    if (!validToken) {
-      setPreviewLoading(false);
-      setPreviewError("Open the unique invitation link sent to your email.");
-      return undefined;
-    }
-    setPreviewLoading(true);
-    setPreviewError("");
     post("/invitations/preview", { token })
       .then((response) => {
-        if (active) {
-          setVerifiedPreview({ token, data: response.data });
-          setPreviewError("");
-        }
+        if (active) setVerification({ token, data: response.data, error: "" });
       })
       .catch((error) => {
-        if (active) {
-          setVerifiedPreview({ token: "", data: null });
-          setPreviewError(apiErrorMessage(error));
-        }
-      })
-      .finally(() => { if (active) setPreviewLoading(false); });
+        if (active) setVerification({ token, data: null, error: apiErrorMessage(error) });
+      });
     return () => { active = false; };
   }, [token, validToken]);
   const [form, setForm] = useState({
