@@ -36,7 +36,18 @@ const { forgotPassword, confirmPasswordReset } = require("../controllers/passwor
 const { forgotPasswordSchema, resetPasswordSchema } = require("../validators/passwordRecoverySchemas");
 const { passwordRecoveryRateLimiter } = require("../middleware/rateLimiters");
 
+const { confirm } = require("../controllers/emailChangeController");
+const { confirmEmailChangeSchema } = require("../validators/emailChangeSchemas");
+const { rateLimit } = require("express-rate-limit");
+const emailConfirmLimiter = rateLimit({
+  windowMs:15*60*1000,limit:20,standardHeaders:"draft-8",legacyHeaders:false,
+  message:{error:{code:"EMAIL_CONFIRM_RATE_LIMITED",message:"Too many attempts. Try again later."}}
+});
+
 const router = express.Router();
+
+router.post("/confirm-email-change",
+  emailConfirmLimiter,validateBody(confirmEmailChangeSchema),confirm);
 
 /*
  * Get a CSRF token for state-changing

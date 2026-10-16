@@ -97,6 +97,37 @@ async function sendCompanyVerificationEmail({ to, token, companyName, registrati
   });
 }
 
+async function sendEmailChangeVerification({ to, token, requestId }) {
+  const config = readEmailConfig();
+  if (!config) throw new Error("EMAIL_NOT_CONFIGURED");
+  const link = new URL("/confirm-email-change", config.origin);
+  link.searchParams.set("token", token);
+  return sendEmail({
+    to,
+    subject: "Confirm your new ManageOS email address",
+    text: [
+      "A request was made to change a ManageOS account email to this address.",
+      "To confirm this address, open the private link within one hour:",
+      link.toString(),
+      "If you did not request this, ignore this email. Your address will not change."
+    ].join("\n\n"),
+    idempotencyKey: "manageos-email-change-" + requestId
+  });
+}
+
+async function sendEmailChangeNotice({ oldEmail, newEmail }) {
+  return sendEmail({
+    to: oldEmail,
+    subject: "Your ManageOS email address was changed",
+    text: [
+      "The email address on your ManageOS account was changed to " + newEmail + ".",
+      "All sign-in sessions were ended. Log in using your new email address.",
+      "If you did not authorize this, contact your company administrator immediately."
+    ].join("\n\n")
+  });
+}
+
 module.exports = {
-  configured, sendPasswordResetEmail, sendInvitationEmail, sendCompanyVerificationEmail
+  configured, sendPasswordResetEmail, sendInvitationEmail,
+  sendCompanyVerificationEmail, sendEmailChangeVerification, sendEmailChangeNotice
 };

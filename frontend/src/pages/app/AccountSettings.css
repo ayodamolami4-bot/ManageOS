@@ -1,0 +1,18 @@
+.account-settings { max-width: 770px; color:#17362b; }
+.account-settings-intro {padding:0 0 24px; border-bottom:1px solid #d6ded5}
+.account-settings-intro span { color:#647e6a; letter-spacing:.13em; font-weight:800; font-size:.7rem }
+.account-settings h1 {font-size:clamp(1.7rem,3vw,2.6rem); letter-spacing:-.04em; margin:10px 0 12px}
+.account-settings p {color:#5c6d62;line-height:1.65}
+.account-settings-panel {background:#fffdf7; border:1px solid #d6ded5;padding:28px;margin-top:24px}
+.account-settings-current {border-bottom:1px solid #d6ded5;padding-bottom:17px;margin-bottom:24px}
+.account-settings-current span {display:block;font-size:.8rem;color:#67766d}
+.account-settings-current strong {display:block;margin-top:6px;overflow-wrap:anywhere;font-size:1.05rem}
+.account-settings-current p {margin-bottom:0;font-size:.86rem}
+.account-settings form {display:flex;flex-direction:column;gap:11px}
+.account-settings label {font-weight:700;margin-top:10px}
+.account-settings input {font:inherit;padding:12px;border:1px solid #bac8bd;background:white;border-radius:3px;max-width:100%}
+.account-settings button {align-self:flex-start;padding:12px 18px;border:0;background:#23543b;color:white;font:inherit;font-weight:700;cursor:pointer;margin-top:12px}
+.account-settings button:disabled {opacity:.65;cursor:wait}
+.account-settings-error {color:#ad3930!important} .account-settings-success {color:#206a42!important}
+.account-settings-footnote {font-size:.85rem;margin-top:24px}
+@media(max-width:680px){.account-settings-panel{padding:20px}.account-settings button{width:100%}}

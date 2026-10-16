@@ -143,6 +143,11 @@ async function updateUserProfileWithClient(
       throw new Error("USER_NOT_FOUND");
     }
 
+    // Defense in depth: profile editing is not an email mutation endpoint.
+    if (String(email).trim().toLowerCase() !== existingUser.email.toLowerCase()) {
+      throw new Error("EMAIL_CHANGE_REQUIRES_VERIFICATION");
+    }
+
     const result = await client.query(
       `
       UPDATE users

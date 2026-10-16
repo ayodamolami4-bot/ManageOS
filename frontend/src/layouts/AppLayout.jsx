@@ -18,6 +18,7 @@ const workspaceNavigation = [
   { label: "Activity", path: "/app/activity", permission: "activity.view" },
   { label: "Audit", path: "/app/audit", permission: "audit.view" },
   { label: "Files", path: "/app/files" },
+  { label: "Account", path: "/app/account" },
 ];
 
 function AppLayout() {

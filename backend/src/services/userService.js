@@ -204,6 +204,12 @@ async function updateUser(
     );
   }
 
+  // Only a verified email-change token may alter an existing login address.
+  // Even OWNER/MANAGER cannot directly replace an employee's email.
+  if (updates.email.trim().toLowerCase() !== targetUser.email.toLowerCase()) {
+    throw new Error("EMAIL_CHANGE_REQUIRES_VERIFICATION");
+  }
+
   const client =
     await pool.connect();
 

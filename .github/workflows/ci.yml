@@ -84,6 +84,10 @@ jobs:
         run: npm run migrate
       - name: Exercise real authenticated workflows
         run: node --test tests/integration/postgresWorkflow.integration.test.js
+      # Run as a separate process so the shared-IP login limiter remains
+      # enforced without unrelated test cases exhausting one another's budget.
+      - name: Exercise verified account email changes
+        run: node --test tests/integration/emailChange.integration.test.js
 
   browser-e2e:
     name: Browser E2E (Chromium)
