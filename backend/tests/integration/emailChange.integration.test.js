@@ -117,3 +117,6 @@ test("PostgreSQL: verified email change, account takeover prevention and session
   assert.equal(audit.rows.length,1);
 });
 
+
+// Release PostgreSQL connections so CI exits promptly after assertions.
+test.after(async () => { await pool.end(); });
