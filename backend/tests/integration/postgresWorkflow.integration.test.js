@@ -30,10 +30,28 @@ async function registerAndLogin(client, companyName, email) {
     companyName, firstName: "Owner", lastName: "Tester",
     email, password: secret,
   });
-  assert.equal(registration.status, 201, JSON.stringify(registration.body));
+  assert.equal(registration.status, 202, JSON.stringify(registration.body));
+  assert.ok(registration.body.data.testVerificationToken);
+
+  // A registration request must NOT create an Owner or company until email
+  // ownership is confirmed; fake or abandoned addresses remain powerless.
+  const before = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+  assert.equal(before.rows.length, 0);
+  const earlyLogin = await client.post("/api/auth/login", { email, password: secret });
+  assert.equal(earlyLogin.status, 401);
+
+  const confirmation = await client.post("/api/auth/verify-company", {
+    token: registration.body.data.testVerificationToken
+  });
+  assert.equal(confirmation.status, 201, JSON.stringify(confirmation.body));
+  const reused = await client.post("/api/auth/verify-company", {
+    token: registration.body.data.testVerificationToken
+  });
+  assert.equal(reused.status, 400);
+
   const login = await client.post("/api/auth/login", { email, password: secret });
   assert.equal(login.status, 200, JSON.stringify(login.body));
-  return { companyId: registration.body.data.company.id, userId: registration.body.data.user.id };
+  return { companyId: confirmation.body.data.company.id, userId: confirmation.body.data.user.id };
 }
 
 async function createEmployee(companyId, ownerId) {
