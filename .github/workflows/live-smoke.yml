@@ -105,7 +105,7 @@ jobs:
               body: JSON.stringify({ token: "0".repeat(64) })
             });
             const previewBody = await preview.json();
-            console.log(`Invalid invitation preview -> ${preview.status}`);
+            console.log(`Invalid invitation preview -> ${preview.status} (${previewBody?.error?.code || "no error code"})`);
             if (preview.status !== 404 || previewBody?.error?.code !== "INVITATION_NOT_FOUND") {
               throw new Error("Invitation preview boundary failed");
             }
