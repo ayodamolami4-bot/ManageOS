@@ -1,4 +1,9 @@
-# Gmail API sender (no domain and no payment)
+# Gmail API sender (no custom domain; Cloud onboarding varies)
+
+**Alternative for no upfront payment:** Some accounts are asked for a $30
+Google Cloud Billing prepayment before activating a trial. Do not pay that
+just to try ManageOS email. See [Apps Script setup](APPS_SCRIPT_EMAIL_SETUP.md)
+for a separate no-Cloud-Billing method using your Gmail sender.
 
 **Status:** Code is implemented and covered by mocked tests, but **no live Gmail
 authorization or delivery has been verified**. The live ManageOS server must

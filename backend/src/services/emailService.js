@@ -1,5 +1,6 @@
 const { readEmailConfig, emailConfigured } = require("../config/emailConfig");
 const { sendGmailEmail } = require("./gmailApiService");
+const { sendAppsScriptEmail } = require("./appsScriptEmailService");
 
 function configured() {
   return emailConfigured();
@@ -10,6 +11,9 @@ async function sendEmail({ to, subject, text, idempotencyKey }) {
   if (!config) throw new Error("EMAIL_NOT_CONFIGURED");
   if (config.provider === "gmail") {
     return sendGmailEmail({ to, subject, text, config });
+  }
+  if (config.provider === "apps_script") {
+    return sendAppsScriptEmail({ to, subject, text, idempotencyKey, config });
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
