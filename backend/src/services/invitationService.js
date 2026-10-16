@@ -183,19 +183,17 @@ async function createUserInvitation(
 
   /**
    * Do not invite an email that is
-   * already registered in this company.
+   * registered in any company. Login email is global.
    */
   const existingUserResult =
     await pool.query(
       `
       SELECT id
       FROM users
-      WHERE company_id = $1
-        AND LOWER(email) = $2
+      WHERE LOWER(email) = $1
       LIMIT 1
       `,
       [
-        currentUser.company_id,
         normalizedEmail
       ]
     );

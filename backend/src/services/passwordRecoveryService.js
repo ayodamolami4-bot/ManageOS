@@ -21,11 +21,11 @@ async function requestPasswordReset(email, { send = emailService.sendPasswordRes
   }
   const normalized = email.trim().toLowerCase();
   const result = await pool.query(
-    "SELECT id, email FROM users WHERE email = $1 LIMIT 1", [normalized]
+    "SELECT id, email FROM users WHERE LOWER(email) = $1 LIMIT 2", [normalized]
   );
   const user = result.rows[0];
   // Generic responses are returned regardless of whether this email exists.
-  if (!user) return;
+  if (!user || result.rows.length !== 1) return;
 
   const token = generateResetToken();
   const tokenHash = hashResetToken(token);

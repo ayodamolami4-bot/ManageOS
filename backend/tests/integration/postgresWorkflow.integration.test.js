@@ -166,6 +166,49 @@ test("PostgreSQL: company workflow, requests and tenant security", { skip: proce
     );
     assert.notEqual(otherCompanyId, companyId);
 
+    // A single email is a GLOBAL login identifier, not a tenant-scoped one.
+    // An owner cannot invite an already registered user from another company.
+    const employeeRole = (await pool.query(
+      "SELECT id FROM roles WHERE name='EMPLOYEE' AND company_id IS NULL AND is_system=TRUE"
+    )).rows[0];
+    const otherCompanyInvite = await owner.post("/api/invitations", {
+      email:"other-owner@manageos.test", roleId:employeeRole.id, organizationUnitId:null
+    });
+    assert.equal(otherCompanyInvite.status,409,JSON.stringify(otherCompanyInvite.body));
+    assert.equal(otherCompanyInvite.body.error.code,"USER_ALREADY_EXISTS");
+
+    // Database-level uniqueness protects concurrent registration/invitation
+    // writers, including case variants and calls bypassing application checks.
+    await assert.rejects(
+      pool.query(
+        `INSERT INTO users (company_id,first_name,last_name,email,password_hash)
+         VALUES ($1,'Duplicate','Account','OTHER-OWNER@MANAGEOS.TEST',$2)`,
+        [companyId,await hashPassword(secret)]
+      ),
+      { code:"23505" }
+    );
+
+    // Invitation redemption re-checks globally, even if an email was free
+    // at creation time and became claimed in a different company afterward.
+    const pendingGlobalEmail = "claimed-after-invitation@manageos.test";
+    const pendingGlobalInvite = await owner.post("/api/invitations",{
+      email:pendingGlobalEmail,roleId:employeeRole.id,organizationUnitId:null
+    });
+    assert.equal(pendingGlobalInvite.status,201,JSON.stringify(pendingGlobalInvite.body));
+    assert.match(pendingGlobalInvite.body.data.token,/^[a-f0-9]{64}$/);
+    await pool.query(
+      `INSERT INTO users (company_id,first_name,last_name,email,password_hash)
+       VALUES ($1,'Claimed','Elsewhere',$2,$3)`,
+      [otherCompanyId,pendingGlobalEmail,await hashPassword(secret)]
+    );
+    const claimElsewhere = await owner.post("/api/invitations/accept",{
+      token:pendingGlobalInvite.body.data.token,
+      firstName:"Duplicate",lastName:"Tester",password:secret
+    });
+    assert.equal(claimElsewhere.status,409,JSON.stringify(claimElsewhere.body));
+    await pool.query("DELETE FROM users WHERE email=$1",[pendingGlobalEmail]);
+
+
     const projectResult = await pool.query(
       `INSERT INTO projects (company_id, name, created_by)
        VALUES ($1, 'Integration project', $2) RETURNING id`,

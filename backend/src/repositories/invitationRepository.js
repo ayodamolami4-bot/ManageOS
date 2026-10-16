@@ -212,12 +212,10 @@ async function acceptInvitation({
         `
         SELECT id
         FROM users
-        WHERE company_id = $1
-          AND LOWER(email) = LOWER($2)
+        WHERE LOWER(email) = LOWER($1)
         LIMIT 1
         `,
         [
-          invitation.company_id,
           invitation.email
         ]
       );

@@ -1,0 +1,82 @@
+name: Verify encrypted backup restoration
+
+# Runs only on this audit branch to test the already-created encrypted
+# production backup against a disposable PostgreSQL 17 database. It never
+# points pg_restore at Neon or the live ManageOS database.
+on:
+  push:
+    branches: [security/global-email-identity-invariant]
+    paths:
+      - .github/workflows/verify-backup-restore.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-restore:
+    name: Isolated encrypted PostgreSQL 17 restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BACKUP_RUN_ID: "38963022587"
+    services:
+      isolated-postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: restore_admin
+          POSTGRES_PASSWORD: only-for-disposable-restore
+          POSTGRES_DB: manageos_restore
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U restore_admin -d manageos_restore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Download encrypted artifact from successful backup run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/manageos-restore"
+          gh run download "$BACKUP_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name encrypted-manageos-database-backup \
+            --dir "$RUNNER_TEMP/manageos-restore"
+          test -s "$RUNNER_TEMP/manageos-restore/production.dump.enc"
+      - name: Decrypt only on ephemeral runner with protected key
+        shell: bash
+        env:
+          MANAGEOS_BACKUP_ENCRYPTION_KEY: ${{ secrets.MANAGEOS_BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          node backend/scripts/backupCrypto.js decrypt \
+            "$RUNNER_TEMP/manageos-restore/production.dump.enc" \
+            "$RUNNER_TEMP/manageos-restore/restored.dump"
+      - name: Restore ALL objects into disposable PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            -v "$RUNNER_TEMP/manageos-restore:/backup:ro" \
+            postgres:17-alpine sh -ec '
+              db="postgresql://restore_admin:only-for-disposable-restore@127.0.0.1:55432/manageos_restore"
+              pg_restore --exit-on-error --no-owner --no-acl --dbname="$db" /backup/restored.dump
+              test "$(psql "$db" -Atqc "SELECT COUNT(*) FROM companies")" -ge 1
+              test "$(psql "$db" -Atqc "SELECT COUNT(*) FROM users")" -ge 1
+              test "$(psql "$db" -Atqc "SELECT COUNT(*) FROM pgmigrations")" -ge 41
+              echo "RESTORE VERIFIED: schema, migration history, company and user rows imported into isolated PostgreSQL."
+            '
+      - name: Delete decrypted backup from ephemeral runner
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/manageos-restore/restored.dump"

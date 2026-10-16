@@ -155,7 +155,7 @@ async function createInvitation(
             "USER_ALREADY_EXISTS",
 
           message:
-            "A user with that email already exists in your company"
+            "That email address is already registered on ManageOS"
         }
       });
     }
