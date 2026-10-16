@@ -1,4 +1,5 @@
 const { readEmailConfig, emailConfigured } = require("../config/emailConfig");
+const { sendGmailEmail } = require("./gmailApiService");
 
 function configured() {
   return emailConfigured();
@@ -7,6 +8,9 @@ function configured() {
 async function sendEmail({ to, subject, text, idempotencyKey }) {
   const config = readEmailConfig();
   if (!config) throw new Error("EMAIL_NOT_CONFIGURED");
+  if (config.provider === "gmail") {
+    return sendGmailEmail({ to, subject, text, config });
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
@@ -46,7 +50,7 @@ async function sendPasswordResetEmail({ to, token }) {
   });
 }
 
-async function sendInvitationEmail({ to, token, companyName, invitationId }) {
+async function sendInvitationEmail({ to, token, companyName, invitationId, roleName, organizationUnitName }) {
   const config = readEmailConfig();
   if (!config) throw new Error("EMAIL_NOT_CONFIGURED");
   const link = new URL("/invite", config.origin);
@@ -57,6 +61,9 @@ async function sendInvitationEmail({ to, token, companyName, invitationId }) {
     subject: "You're invited to join " + safeCompany + " on ManageOS",
     text: [
       "You've been invited to join " + safeCompany + " on ManageOS.",
+      roleName ? "Your assigned role: " + String(roleName).replaceAll("_", " ") : "",
+      organizationUnitName ? "Department: " + String(organizationUnitName) : "Company-wide access, according to your role.",
+      "You can verify your company and role before creating a password.",
       "Accept your invitation using this private link within seven days:",
       link.toString(),
       "If you weren't expecting this invitation, you can ignore this email.",
