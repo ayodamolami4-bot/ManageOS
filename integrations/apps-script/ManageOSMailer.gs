@@ -83,7 +83,7 @@ function doPost(e) {
       });
       if (marker) properties.setProperty(marker, String(Date.now()));
       // Remove markers older than the seven-day invitation lifetime.
-      pruneSentMarkers_(properties);
+      try { pruneSentMarkers_(properties); } catch (_) { /* Best-effort housekeeping only. */ }
       return jsonReply_(true);
     } finally {
       lock.releaseLock();
