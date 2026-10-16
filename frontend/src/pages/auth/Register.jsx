@@ -49,7 +49,9 @@ function Register() {
         password: form.password,
       });
 
-      navigate("/login", { replace: true, state: { accountCreated: true } });
+      // Creating a workspace now requires proving ownership of the email.
+      // Neither a company nor an Owner account exists until confirmation.
+      navigate("/verify-email", { replace: true });
     } catch (error) {
       setErrors(apiFieldErrors(error));
       setServerError(apiErrorMessage(error));
@@ -278,7 +280,7 @@ function Register() {
             {serverError && <p role="alert" className="register-hint" style={{ color: "#a44333" }}>{serverError}</p>}
 
             <button type="submit" className="register-submit" disabled={submitting}>
-              {submitting ? "Creating your account..." : "Create ManageOS account"}
+              {submitting ? "Sending verification email..." : "Verify email and continue"}
               <span aria-hidden="true">→</span>
             </button>
           </form>

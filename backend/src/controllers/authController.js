@@ -1,8 +1,8 @@
+const { loginUser, logoutUser } = require("../services/authService");
 const {
-  registerCompany,
-  loginUser,
-  logoutUser
-} = require("../services/authService");
+  beginCompanyRegistration,
+  verifyCompanyRegistration
+} = require("../services/companyRegistrationService");
 
 const SESSION_COOKIE_NAME =
   "session_id";
@@ -36,39 +36,65 @@ const sessionCookieOptions = {
   maxAge: SESSION_MAX_AGE
 };
 
-async function register(
-  req,
-  res
-) {
+async function register(req, res) {
+  res.set("Cache-Control", "no-store");
   try {
-    const result =
-      await registerCompany(
-        req.body
-      );
-
-    res.set(
-      "Cache-Control",
-      "no-store"
-    );
-
-    res.status(201).json({
+    const result = await beginCompanyRegistration(req.body);
+    return res.status(202).json({
       data: result,
-      message:
-        "Company registered successfully"
+      message: "Check your email to activate your ManageOS company."
     });
   } catch (error) {
-    console.error(
-      "Registration failed:",
-      error
-    );
+    const code = error.message;
+    if (code === "REGISTRATION_EMAIL_IN_USE") {
+      return res.status(409).json({
+        error: { code, message: "This email is already registered. Please sign in." }
+      });
+    }
+    if (code === "REGISTRATION_RETRY_LATER") {
+      return res.status(429).json({
+        error: { code, message: "A verification email was recently requested. Check your inbox or try again shortly." }
+      });
+    }
+    if (["REGISTRATION_EMAIL_UNAVAILABLE", "REGISTRATION_EMAIL_DELIVERY_FAILED"].includes(code)) {
+      console.error("Company verification email is unavailable.");
+      return res.status(503).json({
+        error: { code: "REGISTRATION_EMAIL_UNAVAILABLE",
+          message: "Verification email could not be sent. Please try again later." }
+      });
+    }
+    console.error("Company registration could not be started:", code);
+    return res.status(500).json({
+      error: { code: "REGISTRATION_FAILED", message: "Unable to start company registration." }
+    });
+  }
+}
 
-    res.status(500).json({
-      error: {
-        code:
-          "REGISTRATION_FAILED",
-        message:
-          "Unable to register company"
-      }
+async function verifyCompany(req, res) {
+  res.set("Cache-Control", "no-store");
+  try {
+    const result = await verifyCompanyRegistration(req.body.token);
+    return res.status(201).json({
+      data: result,
+      message: "Email verified. Your company is ready. Sign in to ManageOS."
+    });
+  } catch (error) {
+    if (error.message === "REGISTRATION_TOKEN_INVALID") {
+      return res.status(400).json({
+        error: { code: "REGISTRATION_TOKEN_INVALID",
+          message: "This verification link is invalid, expired or already used." }
+      });
+    }
+    if (error.message === "REGISTRATION_EMAIL_IN_USE") {
+      return res.status(409).json({
+        error: { code: "REGISTRATION_EMAIL_IN_USE",
+          message: "An account already exists for this email." }
+      });
+    }
+    console.error("Company activation failed:", error.message);
+    return res.status(500).json({
+      error: { code: "REGISTRATION_ACTIVATION_FAILED",
+        message: "Unable to activate company. Please try again later." }
     });
   }
 }
@@ -203,6 +229,7 @@ async function me(
 
 module.exports = {
   register,
+  verifyCompany,
   login,
   logout,
   me

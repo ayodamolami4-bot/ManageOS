@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
   register,
+  verifyCompany,
   login,
   logout,
   me
@@ -19,10 +20,12 @@ const {
   registerCompanySchema,
   loginSchema
 } = require("../validators/authSchemas");
+const { verifyCompanyRegistrationSchema } = require("../validators/companyVerificationSchemas");
 
 const {
   loginRateLimiter,
-  registrationRateLimiter
+  registrationRateLimiter,
+  companyVerificationRateLimiter
 } = require("../middleware/rateLimiters");
 
 const {
@@ -51,6 +54,13 @@ router.post(
     registerCompanySchema
   ),
   register
+);
+
+router.post(
+  "/verify-company",
+  companyVerificationRateLimiter,
+  validateBody(verifyCompanyRegistrationSchema),
+  verifyCompany
 );
 
 router.post(
