@@ -73,8 +73,9 @@ async function register(req, res) {
 async function verifyCompany(req, res) {
   res.set("Cache-Control", "no-store");
   try {
-    await verifyCompanyRegistration(req.body.token);
+    const result = await verifyCompanyRegistration(req.body.token);
     return res.status(201).json({
+      data: result,
       message: "Email verified. Your company is ready. Sign in to ManageOS."
     });
   } catch (error) {
