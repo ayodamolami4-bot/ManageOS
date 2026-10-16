@@ -47,6 +47,8 @@ jobs:
             const {data}=JSON.parse(raw);
             if(!data.fictional||data.mode!=="public-read-only")throw Error("Demo security metadata missing");
             if(data.company!=="Tidepath Logistics (Demo)")throw Error("Wrong company");
+            const demoCookie=resp.headers()["set-cookie"]||"";
+            if(/session_id=/i.test(demoCookie))throw Error("Public read-only API issued private session cookie");
             for(const [key,n] of [["projects",5],["goals",4],["tasks",15],["people",7],["files",3]]) {
               if(data[key]?.length!==n)throw Error("Unexpected "+key+" count");
             }
@@ -64,6 +66,38 @@ jobs:
             if(response.status()!==200)throw Error("Demo page failed HTTP");
             await expect(page.getByRole("heading",{name:/Work in motion/i})).toBeVisible({timeout:30000});
             await expect(page.locator(".demo-sidebar-heading strong")).toContainText("Tidepath");
+            // A browser tour must not grant an auth cookie or expose normal tenants.
+            let current=await api.get(base+"/api/auth/me");
+            if(current.status()!==401)throw Error("Public demo unexpectedly authenticated a user");
+            const guide=page.getByTestId("demo-guided-tour");
+            await page.getByRole("button",{name:/Start guided tour/}).click();
+            await expect(guide).toBeVisible();
+            await expect(guide.getByText("Start with the operating picture")).toBeVisible();
+            const guideStops=[
+              ["Trace a business objective","Company goals."],
+              ["Follow a project to delivery","Projects with purpose."],
+              ["Inspect the complete task trail","Tasks, updates, decisions."],
+              ["See who owns the work","Work has an owner."],
+              ["Follow blockers and conversations","Decisions and conversations."],
+              ["Review what changed","A record of what changed."],
+              ["Verify real project evidence","Evidence, not decoration."]
+            ];
+            for(const [title,sectionTitle] of guideStops) {
+              await guide.getByRole("button",{name:/Next stop/}).click();
+              await expect(guide.getByRole("heading",{name:title})).toBeVisible();
+              await expect(page.getByRole("heading",{name:sectionTitle})).toBeVisible();
+            }
+            await expect(guide.getByText("FICTIONAL RECORDS · LIVE DATABASE")).toBeVisible();
+            await guide.getByRole("button",{name:/Finish tour/}).click();
+            await expect(guide).toHaveCount(0);
+            await page.getByRole("button",{name:/Take the guided product tour/}).click();
+            await expect(guide.getByRole("heading",{name:/Start with the operating picture/})).toBeVisible();
+            await guide.getByRole("button",{name:/Explore freely/}).click();
+            await expect(guide).toHaveCount(0);
+            current=await api.get(base+"/api/auth/me");
+            if(current.status()!==401)throw Error("Guided demo created a private session");
+            console.log("PASS: Eight real guided tour stops, restart/exit and auth isolation");
+
             await page.getByRole("button",{name:/Projects/}).first().click();
             await expect(page.getByRole("heading",{name:/Projects with purpose/})).toBeVisible();
             await page.getByRole("button",{name:/Customer ETA Notifications.*active/i}).first().click();
