@@ -1,8 +1,10 @@
 const express = require("express");
+const { rateLimit } = require("express-rate-limit");
 
 const {
   createInvitation,
-  acceptInvitation
+  acceptInvitation,
+  previewInvitation
 } = require("../controllers/invitationController");
 
 const {
@@ -15,7 +17,8 @@ const {
 
 const {
   createInvitationSchema,
-  acceptInvitationSchema
+  acceptInvitationSchema,
+  previewInvitationSchema
 } = require("../validators/invitationSchemas");
 
 const router =
@@ -34,6 +37,16 @@ router.post(
   validateBody(createInvitationSchema),
   createInvitation
 );
+
+// Tokens are supplied in a POST body rather than a URL query string, so
+// gateway and server request logs do not need to contain the bearer token.
+router.post("/preview", rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: { code: "INVITATION_PREVIEW_RATE_LIMITED", message: "Please try again later." } }
+}), validateBody(previewInvitationSchema), previewInvitation);
 
 /*
  * Accept invitation.
