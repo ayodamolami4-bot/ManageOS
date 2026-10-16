@@ -91,6 +91,12 @@ jobs:
             });
             const csrf = await csrfResponse.json();
             const csrfCookie = csrfResponse.headers.get("set-cookie")?.split(";")[0];
+            console.log("CSRF cookie diagnostics:", {
+              name: csrfCookie?.split("=")[0],
+              tokenMatchesCookie: csrfCookie?.split("=")[1] === csrf?.data?.csrfToken,
+              cookieLength: csrfCookie?.length || 0,
+              tokenLength: csrf?.data?.csrfToken?.length || 0
+            });
             if (!csrfCookie || !csrf?.data?.csrfToken) {
               throw new Error("Invitation preview CSRF preflight failed");
             }
