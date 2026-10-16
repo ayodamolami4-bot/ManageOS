@@ -1,4 +1,5 @@
 const express = require("express");
+const { createHash } = require("node:crypto");
 const rateLimit = require("express-rate-limit");
 const pool = require("../db/database");
 const { configuredStore } = require("../utils/storageProvider");
@@ -148,7 +149,7 @@ router.get("/files/:fileId", async (req, res) => {
     if (!UUID.test(req.params.fileId)) return res.status(404).end();
     await assertDemoExists();
     const result = await pool.query(
-      `SELECT f.original_name,f.storage_key,f.mime_type,f.size_bytes
+      `SELECT f.original_name,f.storage_key,f.mime_type,f.size_bytes,f.checksum_sha256
        FROM files f JOIN projects p ON p.id=f.resource_id AND p.company_id=$1
        WHERE f.id=$2 AND f.company_id=$1 AND f.resource_type='PROJECT'
        AND f.mime_type='text/plain' AND f.size_bytes BETWEEN 1 AND 20000
@@ -161,7 +162,11 @@ router.get("/files/:fileId", async (req, res) => {
     const store = configuredStore();
     if (!store) throw new Error("DEMO_STORAGE_UNAVAILABLE");
     const bytes = await store.get(file.storage_key);
-    if (bytes.length !== file.size_bytes) throw new Error("DEMO_FILE_INTEGRITY_FAILURE");
+    const digest = createHash("sha256").update(bytes).digest("hex");
+    if (bytes.length !== Number(file.size_bytes) ||
+        digest !== String(file.checksum_sha256 || "").trim()) {
+      throw new Error("DEMO_FILE_INTEGRITY_FAILURE");
+    }
     res.set("Content-Type", "text/plain; charset=utf-8");
     res.set("Content-Disposition", 'attachment; filename="' + file.original_name + '"');
     return res.send(bytes);
