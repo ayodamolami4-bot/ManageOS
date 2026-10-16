@@ -22,6 +22,25 @@ function requirePublicOrigin(env) {
 function readEmailConfig(env = process.env) {
   const provider = String(env.EMAIL_PROVIDER || "resend").trim().toLowerCase();
   const origin = requirePublicOrigin(env);
+  if (provider === "apps_script") {
+    const endpoint = String(env.APPS_SCRIPT_WEB_APP_URL || "").trim();
+    const sharedSecret = String(env.APPS_SCRIPT_SHARED_SECRET || "").trim();
+    if (!endpoint || !sharedSecret || !origin) return null;
+    let parsed;
+    try { parsed = new URL(endpoint); }
+    catch { throw new Error("EMAIL_SCRIPT_URL_INVALID"); }
+    // Never send invitation links or private credentials to an arbitrary URL.
+    if (parsed.protocol !== "https:" ||
+        parsed.hostname !== "script.google.com" ||
+        !/^\/macros\/s\/[a-zA-Z0-9_-]+\/exec$/.test(parsed.pathname) ||
+        parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw new Error("EMAIL_SCRIPT_URL_INVALID");
+    }
+    if (!/^[A-Za-z0-9_-]{48,256}$/.test(sharedSecret)) {
+      throw new Error("EMAIL_SCRIPT_SECRET_INVALID");
+    }
+    return { provider, origin, endpoint: parsed.toString(), sharedSecret };
+  }
   if (provider === "gmail") {
     const sender = String(env.GMAIL_SENDER_EMAIL || "").trim();
     const oauthClientId = String(env.GMAIL_OAUTH_CLIENT_ID || "").trim();
