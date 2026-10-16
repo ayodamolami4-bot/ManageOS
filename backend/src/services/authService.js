@@ -71,8 +71,8 @@ async function loginUser({
         password_hash
       FROM users
       JOIN companies ON companies.id = users.company_id
-      WHERE users.email = $1
-      LIMIT 1
+      WHERE LOWER(users.email) = $1
+      LIMIT 2
       `,
       [
         normalizedEmail
@@ -82,7 +82,8 @@ async function loginUser({
   const user =
     result.rows[0];
 
-  if (!user) {
+  // Fail closed if legacy data ever contains ambiguous login identities.
+  if (!user || result.rows.length !== 1) {
     throw new Error(
       "INVALID_CREDENTIALS"
     );
