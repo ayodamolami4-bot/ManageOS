@@ -739,3 +739,13 @@
     gap: 8px;
   }
 }
+
+/* Verified token metadata appears before a recipient can create credentials. */
+.invite-verified-details { display: grid; gap: 12px; }
+.invite-verified-details > strong { display: block; font-size: clamp(19px,2.5vw,27px); color: #193b30; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.invite-verified-details dl { display: grid; gap: 0; margin: 4px 0; border-top: 1px solid #dfe3da; }
+.invite-verified-details dl > div { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 11px 0; border-bottom: 1px solid #dfe3da; }
+.invite-verified-details dt { color: #647369; font-size: 12px; }
+.invite-verified-details dd { color: #1f4031; margin: 0; text-align: right; font-size: 12px; font-weight: 750; overflow-wrap: anywhere; }
+.invite-verified-details p { line-height: 1.65; font-size: 12px; }
+.invite-preview-error { color: #983e32; font-size: 13px; line-height: 1.6; }
