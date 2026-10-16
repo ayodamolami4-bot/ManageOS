@@ -45,16 +45,11 @@ of the task data.
   history, reviews and discussions are persisted in PostgreSQL.
 - Marketing-page visual previews may use illustrative copy; those mock
   illustrations must not be mistaken for a populated authenticated workspace.
-- The **fictional public recruiter demo** is a special, intentionally
-  restricted, read-only view over ONE sample tenant. Its tenant ID, company
-  name, and three approved sample filenames are centralized in
-  `backend/src/config/publicDemo.js`. Its implementation is explicitly
-  separated into:
-  `backend/src/routes/publicDemoRoutes.js` → 
-  `backend/src/services/publicDemoService.js` → 
-  `backend/src/repositories/publicDemoRepository.js`.
-  It never creates a session or exposes passwords, email addresses or file
-  storage keys to the public. It is NOT the application-wide tenant selector.
+- Recruiter demo components and fictional sample presentations do NOT live in
+  the production application. The previously prototyped demo has been saved
+  on the `archive/portfolio-recruiter-demo` GitHub branch for later work
+  in a separate portfolio project. Do not add public demo APIs or
+  hard-coded sample-company selectors back to the production application.
 
 ## Review rules for future contributions
 
@@ -79,16 +74,17 @@ of the task data.
 - Environment access is documented, but remains distributed across
   application startup, email and storage adapters. A single validated runtime
   configuration adapter would improve consistency and fail-fast diagnostics.
-- Some large frontend pages mix state coordination and presentation.
-  `DemoExplorer.jsx` is a current example; splitting its sections into
-  focused components would improve maintainability.
+- Some large authenticated frontend pages mix state coordination and
+  presentation. Extract focused components when doing so clarifies feature
+  ownership, without adding unnecessary layers.
 - API routing in `backend/src/app.js` is centralized but long. Route
   registration can be grouped as the application grows.
-- Public demo data and marketing illustrations must remain clearly labeled
-  *fictional*. Keep reviewer sample dates and links fresh.
-- The live public demo must pass GET/403/405/404 isolation tests, the
-  private-user flows must remain authenticated, and release verification must
-  be repeated after deployment.
+- Marketing illustrations must remain clearly differentiated from live
+  product screens. Any separate portfolio demo must label its sample data
+  fictional and must never share authentication or database-writing access
+  with actual companies.
+- Keep private-user flows authenticated and repeat production readiness,
+  authorization and browser verification after releases.
 
 These are concrete maintenance notes, not a claim that every file has
 undergone a comprehensive architecture audit.
