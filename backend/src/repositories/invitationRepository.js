@@ -437,8 +437,32 @@ async function revokeUndeliveredInvitation({ invitationId, companyId, actorId })
   }
 }
 
+/**
+ * Read-only recipient preview, authorized by possession of the 256-bit
+ * invitation token. Never disclose email, raw token, unrelated users,
+ * company records or private permission configuration.
+ */
+async function getInvitationPreviewByTokenHash(tokenHash) {
+  const result = await pool.query(
+    `SELECT i.status, i.expires_at,
+       c.name AS company_name, r.name AS role_name,
+       ou.name AS organization_unit_name
+     FROM invitations i
+     JOIN companies c ON c.id = i.company_id
+     JOIN roles r ON r.id = i.role_id
+       AND (r.company_id = i.company_id OR
+            (r.company_id IS NULL AND r.is_system = TRUE))
+     LEFT JOIN organization_units ou ON ou.id = i.organization_unit_id
+       AND ou.company_id = i.company_id
+     WHERE i.token_hash = $1 LIMIT 1`,
+    [tokenHash]
+  );
+  return result.rows[0] || null;
+}
+
 module.exports = {
   createInvitation,
   acceptInvitation,
-  revokeUndeliveredInvitation
+  revokeUndeliveredInvitation,
+  getInvitationPreviewByTokenHash
 };
