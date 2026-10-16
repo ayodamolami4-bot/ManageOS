@@ -57,6 +57,7 @@ async function beginCompanyRegistration(data, { send = emailService.sendCompanyV
          first_name = EXCLUDED.first_name,
          last_name = EXCLUDED.last_name,
          password_hash = EXCLUDED.password_hash,
+         id = gen_random_uuid(),
          token_hash = EXCLUDED.token_hash,
          expires_at = EXCLUDED.expires_at,
          created_at = NOW()
