@@ -1,6 +1,7 @@
 const {
   createUserInvitation,
-  acceptUserInvitation
+  acceptUserInvitation,
+  previewUserInvitation
 } = require("../services/invitationService");
 
 const emailService = require("../services/emailService");
@@ -341,7 +342,37 @@ async function acceptInvitation(
   }
 }
 
+
+async function previewInvitation(req, res) {
+  res.set("Cache-Control", "no-store");
+  try {
+    const data = await previewUserInvitation(req.body.token);
+    return res.status(200).json({ data });
+  } catch (error) {
+    if (error.message === "INVITATION_NOT_ACTIVE") {
+      return res.status(409).json({
+        error: { code: "INVITATION_NOT_ACTIVE", message: "This invitation has already been used or revoked." }
+      });
+    }
+    if (error.message === "INVITATION_EXPIRED") {
+      return res.status(410).json({
+        error: { code: "INVITATION_EXPIRED", message: "This invitation has expired. Ask your company to send a new one." }
+      });
+    }
+    if (error.message === "INVITATION_NOT_FOUND") {
+      return res.status(404).json({
+        error: { code: "INVITATION_NOT_FOUND", message: "This invitation link is invalid." }
+      });
+    }
+    console.error("Invitation preview unavailable.");
+    return res.status(503).json({
+      error: { code: "INVITATION_PREVIEW_UNAVAILABLE", message: "Unable to verify this invitation right now." }
+    });
+  }
+}
+
 module.exports = {
   createInvitation,
-  acceptInvitation
+  acceptInvitation,
+  previewInvitation
 };
