@@ -99,17 +99,25 @@ async function verifyCompanyRegistration(token) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Lock ordering matches registration (advisory lock BEFORE row lock)
+    // to prevent deadlocks when a verification races with a resend.
+    const tokenHash = hashToken(token);
+    const preflight = await client.query(
+      `SELECT email FROM pending_company_registrations
+       WHERE token_hash = $1 AND expires_at > NOW()`,
+      [tokenHash]
+    );
+    if (!preflight.rows[0]) throw new Error("REGISTRATION_TOKEN_INVALID");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [preflight.rows[0].email]);
     const pendingResult = await client.query(
       `SELECT id, company_name, first_name, last_name, email, password_hash
        FROM pending_company_registrations
        WHERE token_hash = $1 AND expires_at > NOW()
        FOR UPDATE`,
-      [hashToken(token)]
+      [tokenHash]
     );
     const pending = pendingResult.rows[0];
     if (!pending) throw new Error("REGISTRATION_TOKEN_INVALID");
-
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [pending.email]);
     const usedEmail = await client.query(
       "SELECT 1 FROM users WHERE LOWER(email) = $1 LIMIT 1", [pending.email]
     );
