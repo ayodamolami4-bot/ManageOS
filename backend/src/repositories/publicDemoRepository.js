@@ -97,7 +97,7 @@ async function findApprovedDocument(fileId) {
       [DEMO_ID, fileId, APPROVED_FILES]
     );
     const file = result.rows[0];
-    return file && APPROVED_FILES.has(file.original_name) ? file : null;
+    return file && APPROVED_FILES.includes(file.original_name) ? file : null;
 
 }
 
