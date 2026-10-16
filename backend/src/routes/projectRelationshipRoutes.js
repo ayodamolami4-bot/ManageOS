@@ -17,6 +17,7 @@ const {
 
 const {
   requireProjectManagement,
+  requireProjectUnitLinkManagement,
   requireProjectView
 } = require("../middleware/projectAuthorization");
 
@@ -57,7 +58,7 @@ router.post(
   authenticate,
   validateParams(projectRef),
   validateBody(unitRef),
-  requireProjectManagement,
+  requireProjectUnitLinkManagement,
   addOrganizationUnit
 );
 
