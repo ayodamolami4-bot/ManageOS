@@ -353,7 +353,34 @@ async function isTeamLeadOfOrganizationUnit(
   return result.rows.length > 0;
 }
 
+
+/**
+ * The employee can inspect this summary before choosing their password.
+ * Preview access proves only possession of the unguessable invitation link.
+ * Acceptance re-checks the invitation atomically in the repository.
+ */
+async function previewUserInvitation(token) {
+  if (!/^[a-f0-9]{64}$/i.test(String(token || ""))) {
+    throw new Error("INVITATION_NOT_FOUND");
+  }
+  const invitation = await invitationRepository.getInvitationPreviewByTokenHash(
+    hashInvitationToken(token)
+  );
+  if (!invitation) throw new Error("INVITATION_NOT_FOUND");
+  if (invitation.status !== "PENDING") throw new Error("INVITATION_NOT_ACTIVE");
+  if (new Date(invitation.expires_at).getTime() <= Date.now()) {
+    throw new Error("INVITATION_EXPIRED");
+  }
+  return {
+    companyName: invitation.company_name,
+    roleName: invitation.role_name,
+    organizationUnitName: invitation.organization_unit_name || null,
+    expiresAt: invitation.expires_at
+  };
+}
+
 module.exports = {
   createUserInvitation,
-  acceptUserInvitation
+  acceptUserInvitation,
+  previewUserInvitation
 };
