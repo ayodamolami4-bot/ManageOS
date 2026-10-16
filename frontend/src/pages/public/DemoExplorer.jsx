@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { get } from "../../services/api";
-import DemoTour, { TOUR_STEPS } from "./DemoTour";
+import DemoTour from "./DemoTour";
+import { TOUR_STEPS } from "./demoTourSteps";
 import "./DemoExplorer.css";
 
 const sections = [
