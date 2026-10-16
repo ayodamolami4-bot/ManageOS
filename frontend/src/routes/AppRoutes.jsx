@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Home from "../pages/public/Home";
+import DemoExplorer from "../pages/public/DemoExplorer";
 import Product from "../pages/public/Product";
 import HowItWorks from "../pages/public/HowItWorks";
 import Security from "../pages/public/Security";
@@ -35,6 +36,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/demo" element={<DemoExplorer />} />
       <Route path="/product" element={<Product />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/security" element={<Security />} />
