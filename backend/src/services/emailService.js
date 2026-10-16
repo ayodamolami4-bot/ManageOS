@@ -82,7 +82,7 @@ async function sendCompanyVerificationEmail({ to, token, companyName, registrati
   const url = new URL("/verify-email", config.origin);
   url.searchParams.set("token", token);
   const safeCompany = String(companyName || "your company")
-    .replace(/[\\r\\n]+/g, " ").trim().slice(0, 120);
+    .replace(/[\r\n]+/g, " ").trim().slice(0, 120);
   return sendEmail({
     to,
     subject: "Verify your email to create " + safeCompany + " on ManageOS",
