@@ -46,7 +46,7 @@ function ensureCsrfToken(
   const existingToken =
     req.cookies?.[
       CSRF_COOKIE_NAME
-    ];
+    ] || req._manageosGeneratedCsrfToken;
 
   if (existingToken) {
     return existingToken;
@@ -54,6 +54,10 @@ function ensureCsrfToken(
 
   const token =
     generateCsrfToken();
+
+  // The global GET middleware and /auth/csrf handler run on the same
+  // request. Reuse this token instead of emitting two conflicting cookies.
+  req._manageosGeneratedCsrfToken = token;
 
   setCsrfCookie(
     res,
