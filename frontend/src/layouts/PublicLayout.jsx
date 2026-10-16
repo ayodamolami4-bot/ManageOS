@@ -41,6 +41,7 @@ function PublicLayout({ children }) {
         </div>
 
         <div className="public-nav-actions">
+          <Link to="/demo" className="public-login">Live demo</Link>
           <Link to="/login" className="public-login">
             Login
           </Link>
