@@ -95,6 +95,12 @@ function doPost(e) {
   }
 }
 
+// Run once from the Apps Script editor to approve send-only access.
+// This function sends no messages and does not read the Gmail inbox.
+function authorizeSender() {
+  return MailApp.getRemainingDailyQuota();
+}
+
 // A GET must never send an email.
 function doGet() {
   return jsonReply_(false);
