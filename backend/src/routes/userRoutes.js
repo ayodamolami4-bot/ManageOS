@@ -37,8 +37,18 @@ const {
   "../validators/userSchemas"
 );
 
-const router =
-  express.Router();
+const { request } = require("../controllers/emailChangeController");
+const { requestEmailChangeSchema } = require("../validators/emailChangeSchemas");
+const { rateLimit } = require("express-rate-limit");
+const emailChangeLimiter = rateLimit({
+  windowMs:15*60*1000,limit:5,standardHeaders:"draft-8",legacyHeaders:false,
+  message:{error:{code:"EMAIL_CHANGE_RATE_LIMITED",message:"Too many attempts. Try again later."}}
+});
+
+const router = express.Router();
+
+router.post("/me/email-change",
+  authenticate,emailChangeLimiter,validateBody(requestEmailChangeSchema),request);
 
 router.get(
   "/",
