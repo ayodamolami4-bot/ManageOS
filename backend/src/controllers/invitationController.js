@@ -37,10 +37,14 @@ async function createInvitation(
 
     if (process.env.NODE_ENV === "production") {
       try {
+        // Reuse the same verified role/unit source the recipient will see.
+        const summary = await previewUserInvitation(result.token);
         await emailService.sendInvitationEmail({
           to: req.body.email,
           token: result.token,
-          companyName: req.user.company_name,
+          companyName: summary.companyName,
+          roleName: summary.roleName,
+          organizationUnitName: summary.organizationUnitName,
           invitationId: result.invitation.id,
         });
       } catch (deliveryError) {
