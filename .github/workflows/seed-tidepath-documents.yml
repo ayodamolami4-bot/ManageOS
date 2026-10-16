@@ -1,0 +1,179 @@
+name: Populate Tidepath sample documents
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/seed-tidepath-documents.yml
+
+permissions:
+  contents: read
+
+jobs:
+  files:
+    name: Write verified sample documents to private storage
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      NODE_ENV: production
+      DATABASE_URL: ${{ secrets.MANAGEOS_DEMO_DATABASE_URL }}
+      SUPABASE_URL: ${{ secrets.MANAGEOS_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.MANAGEOS_SUPABASE_SECRET_KEY }}
+      SUPABASE_STORAGE_BUCKET: manageos-files
+      FILE_STORAGE_BACKEND: supabase
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Upload and register sample documents
+        run: |
+          node <<'NODE'
+          const { createHash } = require("node:crypto");
+          const pool = require("./src/db/database");
+          const { createConfiguredSupabaseStore } = require("./src/utils/supabaseStorage");
+          const { createFileWithClient } = require("./src/repositories/fileRepository");
+          const { generateStorageKey } = require("./src/utils/fileStorage");
+
+          const companyId = "b217e28e-e7fa-461a-a43b-034e9e629502";
+          const companyName = "Tidepath Logistics (Demo)";
+          const documents = [
+            {
+              project: "Lagos Dispatch Command Centre",
+              filename: "dispatch-control-brief.txt",
+              text: [
+                "TIDEPATH LOGISTICS | SAMPLE DATA",
+                "Dispatch command centre: pilot operating brief",
+                "",
+                "Objective: reduce dispatch-to-rider handoff toward 25 minutes.",
+                "Morning controls: verify available capacity, confirm route allocations,",
+                "check missed rider sign-ins, and update the exception stand-up.",
+                "Key pilot zones: Mainland, Island and suburban cluster routes.",
+                "Actions: run 09:00 stand-up, track bottlenecks, escalate route handoffs",
+                "above 30 minutes, and record the owner of each exception.",
+                "Review cadence: daily dispatch huddle and Friday performance review.",
+                "",
+                "This document is fictional demonstration evidence, not real operations."
+              ].join("\n") + "\n"
+            },
+            {
+              project: "Delivery Exceptions Recovery Playbook",
+              filename: "exceptions-quality-review.txt",
+              text: [
+                "TIDEPATH LOGISTICS | SAMPLE DATA",
+                "Delivery exception recovery: quality-review notes",
+                "",
+                "Observed categories: incomplete addresses, unavailable recipients,",
+                "rider capacity conflicts, missing event scans and incorrect time windows.",
+                "Recovery workflow:",
+                "1. Classify the exception with a specific reason code.",
+                "2. Verify recipient and landmark details before re-routing.",
+                "3. Assign callback ownership and record the outcome.",
+                "4. Escalate repeated failures for QA sampling and review.",
+                "Success measure: failed-delivery exceptions below 3%.",
+                "",
+                "Fictional scenario for demonstration and testing only."
+              ].join("\n") + "\n"
+            },
+            {
+              project: "Customer ETA Notifications",
+              filename: "customer-alert-pilot-notes.txt",
+              text: [
+                "TIDEPATH LOGISTICS | SAMPLE DATA",
+                "Customer ETA alerts: pilot design notes",
+                "",
+                "Events: order picked up, rider assigned, out for delivery,",
+                "delay detected, delivery attempt, delivery confirmed.",
+                "Messages should contain a useful status, not noisy repeated updates.",
+                "Deduplicate events by order ID and status transition.",
+                "Run a small internal pilot before enabling customer broadcasts.",
+                "Track notification delivery, response, and unexpected duplicates.",
+                "",
+                "No real customer or production order information is included."
+              ].join("\n") + "\n"
+            }
+          ];
+
+          async function main() {
+            if (!process.env.DATABASE_URL || !process.env.SUPABASE_URL ||
+                !process.env.SUPABASE_SECRET_KEY) throw new Error("Private demo dependencies not configured");
+            const company = await pool.query(
+              "SELECT id FROM companies WHERE id=$1 AND name=$2", [companyId, companyName]
+            );
+            if (company.rowCount !== 1) throw new Error("Expected demo tenant not found");
+            const owner = await pool.query(
+              "SELECT id FROM users WHERE company_id=$1 AND first_name='Amara' AND last_name='Okonkwo'", [companyId]
+            );
+            if (owner.rowCount !== 1) throw new Error("Expected demo owner not found");
+            const store = createConfiguredSupabaseStore();
+            await store.assertPrivateBucket();
+            for (const doc of documents) {
+              const project = await pool.query(
+                "SELECT id FROM projects WHERE company_id=$1 AND name=$2",
+                [companyId, doc.project]
+              );
+              if (project.rowCount !== 1) throw new Error("Demo project mismatch: " + doc.project);
+              const existing = await pool.query(
+                "SELECT id FROM files WHERE company_id=$1 AND resource_type='PROJECT' AND resource_id=$2 AND original_name=$3",
+                [companyId, project.rows[0].id, doc.filename]
+              );
+              if (existing.rowCount > 0) {
+                console.log("Already present: " + doc.filename);
+                continue;
+              }
+              const bytes = Buffer.from(doc.text, "utf8");
+              const storageKey = generateStorageKey(companyId, doc.filename);
+              let uploaded = false;
+              try {
+                const checksum = await store.put(storageKey, bytes, "text/plain");
+                uploaded = true;
+                const retrieved = await store.get(storageKey);
+                if (!retrieved.equals(bytes) || checksum !== createHash("sha256").update(bytes).digest("hex")) {
+                  throw new Error("Private storage roundtrip mismatch");
+                }
+                const client = await pool.connect();
+                try {
+                  await client.query("BEGIN");
+                  await createFileWithClient(client, {
+                    companyId,
+                    uploadedBy: owner.rows[0].id,
+                    resourceType: "PROJECT",
+                    resourceId: project.rows[0].id,
+                    originalName: doc.filename,
+                    storageKey,
+                    mimeType: "text/plain",
+                    sizeBytes: bytes.length,
+                    checksumSha256: checksum
+                  });
+                  await client.query("COMMIT");
+                } catch (error) {
+                  await client.query("ROLLBACK").catch(() => {});
+                  throw error;
+                } finally {
+                  client.release();
+                }
+                console.log("Verified and registered: " + doc.filename);
+              } catch (error) {
+                if (uploaded) await store.delete(storageKey).catch(() => {});
+                throw error;
+              }
+            }
+            const count = await pool.query(
+              "SELECT COUNT(*)::int AS n FROM files WHERE company_id=$1", [companyId]
+            );
+            if (count.rows[0].n !== documents.length) {
+              throw new Error("Unexpected demo file count");
+            }
+            console.log("SUCCESS: Three private, downloadable sample documents created.");
+          }
+          main().catch(error => {
+            console.error("Demo document seeding failed:", error.message);
+            process.exitCode = 1;
+          }).finally(async () => { await pool.end(); });
+          NODE
