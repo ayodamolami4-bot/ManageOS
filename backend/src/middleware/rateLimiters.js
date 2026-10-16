@@ -74,7 +74,24 @@ const passwordRecoveryRateLimiter = rateLimit({
   }
 });
 
+// Verification links already contain 256-bit random tokens. Allow a
+// separate small burst so legitimate confirmations do not exhaust the
+// much stricter registration limit.
+const companyVerificationRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    error: {
+      code: "COMPANY_VERIFICATION_RATE_LIMITED",
+      message: "Too many verification attempts. Please try again later."
+    }
+  }
+});
+
 module.exports = {
+  companyVerificationRateLimiter,
   loginRateLimiter,
   registrationRateLimiter,
   passwordRecoveryRateLimiter
