@@ -7,7 +7,7 @@ function displayName(person) {
   return [person.first_name, person.last_name].filter(Boolean).join(" ") || person.email || "Team member";
 }
 
-export default function ProjectRelationshipsPanel({ projectId, canManage = false }) {
+export default function ProjectRelationshipsPanel({ projectId, canManage = false, canLinkUnits = false }) {
   const [members, setMembers] = useState([]);
   const [leads, setLeads] = useState([]);
   const [linkedUnits, setLinkedUnits] = useState([]);
@@ -30,7 +30,7 @@ export default function ProjectRelationshipsPanel({ projectId, canManage = false
       ["Leads", get("/project-relationships/" + projectId + "/leads")],
       ["Units", get("/project-relationships/" + projectId + "/organization-units")],
       ["Company members", canManage ? get("/users").catch(() => get("/requests/recipients")) : Promise.resolve({ data: [] })],
-      ["Organization", canManage ? get("/organization-units") : Promise.resolve({ data: [] })],
+      ["Organization", canLinkUnits ? get("/organization-units") : Promise.resolve({ data: [] })],
     ];
     Promise.allSettled(requests.map(([, call]) => call)).then((results) => {
       if (!active) return;
@@ -131,7 +131,7 @@ export default function ProjectRelationshipsPanel({ projectId, canManage = false
           <article className="workspace-data-item">
             <h3>Responsible organization units</h3>
             <p className="workspace-data-meta">{linkedUnits.length ? linkedUnits.map((unit) => unit.name).join(", ") : "No unit linked yet."}</p>
-            {canManage && companyUsers && (
+            {canLinkUnits && companyUsers && (
               <form className="workspace-data-form" noValidate onSubmit={(event) =>
                 createRelationship(event, "organization-units", selectedUnit)
               }>
