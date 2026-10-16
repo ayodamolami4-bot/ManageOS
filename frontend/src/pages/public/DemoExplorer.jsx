@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { get } from "../../services/api";
+import DemoTour, { TOUR_STEPS } from "./DemoTour";
 import "./DemoExplorer.css";
 
 const sections = [
@@ -42,6 +43,7 @@ export default function DemoExplorer() {
   const [selectedTask, setSelectedTask] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
+  const [tourIndex, setTourIndex] = useState(null);
   useEffect(() => {
     let active = true;
     get("/demo/overview")
@@ -74,6 +76,26 @@ export default function DemoExplorer() {
     if (to === "work" && id) { setSelectedTask(id); setFilter("ALL"); setSearch(""); }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+  // Guided tour changes only this React page state. It never enters /app,
+  // authenticates a visitor, or sends write requests to the production API.
+  function showTourStep(nextIndex) {
+    if (nextIndex < 0 || nextIndex >= TOUR_STEPS.length) {
+      setTourIndex(null);
+      return;
+    }
+    const stop = TOUR_STEPS[nextIndex];
+    let id;
+    if (stop.section === "projects") {
+      id = (data.projects.find(item => item.status === "ACTIVE" && data.goalLinks.some(link => link.project_id === item.id))
+        || data.projects[0])?.id;
+    }
+    if (stop.section === "work") {
+      id = (data.tasks.find(item => data.reviews.some(review => review.task_id === item.id))
+        || data.tasks[0])?.id;
+    }
+    setTourIndex(nextIndex);
+    jump(stop.section, id);
+  }
   const linkedGoals = item => data.goalLinks.filter(link => link.project_id === item.id)
     .map(link => data.goals.find(goal => goal.id === link.goal_id)).filter(Boolean);
   const relatedTasks = item => data.tasks.filter(entry => entry.project_id === item.id);
@@ -105,6 +127,16 @@ export default function DemoExplorer() {
         </aside>
         <main className="demo-main">
           <div className="demo-path"><span>WORKSPACE PREVIEW</span><span>/</span><strong>{currentSection?.[1]}</strong><span className="demo-current-mode">READ-ONLY</span></div>
+          {!loading && !loadError && tourIndex !== null && (
+            <DemoTour index={tourIndex} counts={Object.fromEntries(
+              TOUR_STEPS.map(stop => [stop.collection, data[stop.collection]?.length || 0])
+            )} onBack={() => showTourStep(tourIndex - 1)}
+              onNext={() => showTourStep(tourIndex + 1)}
+              onExit={() => setTourIndex(null)} />
+          )}
+          {!loading && !loadError && tourIndex === null && section !== "overview" && (
+            <button className="demo-tour-reset" type="button" onClick={() => showTourStep(0)}>↗ Take the guided product tour</button>
+          )}
           {loading ? <div role="status" className="demo-loading"><span className="demo-light"/>Connecting to sample workspace…</div>
             : loadError ? <div className="demo-load-error" role="alert">
                 <h2>We couldn't load Tidepath right now.</h2><p>{loadError}</p>
@@ -118,6 +150,14 @@ export default function DemoExplorer() {
                   <p>Explore how a fictional Lagos delivery company uses ManageOS to link strategic goals to teams, projects, assignments and reviewed outcomes. These figures come directly from the live database.</p>
                   <button type="button" className="demo-hero-link" onClick={() => jump("projects")}>Explore company projects <span aria-hidden="true">↗</span></button>
                 </header>
+                {tourIndex === null && <section className="demo-tour-invite">
+                  <div>
+                    <span className="demo-overline">START HERE / APPROX. 3 MINUTES</span>
+                    <h2>See how a company actually works.</h2>
+                    <p>Follow eight connected stops, from strategic goals through task reviews to downloadable evidence. Explore real fictional records, without an account or the ability to edit company data.</p>
+                  </div>
+                  <button className="demo-tour-start" type="button" onClick={() => showTourStep(0)}>Start guided tour ↗</button>
+                </section>}
                 <div className="demo-stat-grid">
                   <Stat number={data.goals.length} label="Company goals" note="Aligned to delivery work"/>
                   <Stat number={counts.active} label="Active projects" note={data.projects.length + " total projects"}/>
