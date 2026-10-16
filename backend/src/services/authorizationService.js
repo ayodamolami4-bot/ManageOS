@@ -424,6 +424,16 @@ async function canManageProject(
   );
 }
 
+/**
+ * Linking an organization unit expands who may become eligible for work on a
+ * project. Reserve that scope change for the company Owner or a company-wide
+ * Manager who can already manage the project.
+ */
+async function canLinkProjectOrganizationUnit(user, projectId) {
+  if (!(await canManageProject(user, projectId))) return false;
+  return canManageOrganizationUnit(user, null);
+}
+
 async function canViewTask(
   user,
   taskId
@@ -1073,6 +1083,7 @@ module.exports = {
   getTaskProjectId,
   canViewProject,
   canManageProject,
+  canLinkProjectOrganizationUnit,
   canViewTask,
   canManageTask,
   canReviewTask,
