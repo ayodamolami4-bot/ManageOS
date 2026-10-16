@@ -37,6 +37,8 @@ const createInvitationSchema = z
   })
   .strict();
 
+const previewInvitationSchema = z.object({ token: invitationTokenSchema }).strict();
+
 const acceptInvitationSchema = z
   .object({
     token:
@@ -83,5 +85,6 @@ const acceptInvitationSchema = z
 
 module.exports = {
   createInvitationSchema,
-  acceptInvitationSchema
+  acceptInvitationSchema,
+  previewInvitationSchema
 };
