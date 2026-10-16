@@ -59,15 +59,16 @@ test("public preview requires CSRF and returns only its bounded safe payload", a
   const original = repository.getInvitationPreviewByTokenHash;
   repository.getInvitationPreviewByTokenHash = async () => active;
   t.after(() => { repository.getInvitationPreviewByTokenHash = original; });
-  const csrf = await request(app).get("/api/auth/csrf");
+  const agent = request.agent(app);
+  const csrf = await agent.get("/api/auth/csrf");
   assert.equal(csrf.status, 200);
   const header = csrf.body.data.csrfToken;
   const cookie = csrf.headers["set-cookie"].map(item => item.split(";")[0]).join("; ");
   const missing = await request(app).post("/api/invitations/preview").send({ token: TOKEN });
   assert.equal(missing.status, 403);
-  const valid = await request(app).post("/api/invitations/preview")
+  const valid = await agent.post("/api/invitations/preview")
     .set("Cookie", cookie).set("X-CSRF-Token", header).send({ token: TOKEN });
-  assert.equal(valid.status, 200);
+  assert.equal(valid.status, 200, JSON.stringify(valid.body?.error || {}));
   assert.equal(valid.headers["cache-control"], "no-store");
   assert.deepEqual(valid.body.data, {
     companyName: active.company_name,
