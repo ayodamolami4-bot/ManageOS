@@ -26,6 +26,9 @@ async function inviteAndJoin(owner, invitedPage, { email, firstName, role, unitN
   await expect(inviteLink).toBeVisible();
   const href = await inviteLink.getAttribute("href");
   await invitedPage.goto(href);
+  await expect(invitedPage.locator(".invite-verified-details strong")).toBeVisible();
+  await expect(invitedPage.locator(".invite-verified-details dd").first()).toContainText(role);
+  if (unitName) await expect(invitedPage.locator(".invite-verified-details dd").nth(1)).toHaveText(unitName);
   await invitedPage.locator("#invite-first").fill(firstName);
   await invitedPage.locator("#invite-last").fill("Tester");
   await invitedPage.locator("#invite-password").fill(PASSWORD);
@@ -34,6 +37,12 @@ async function inviteAndJoin(owner, invitedPage, { email, firstName, role, unitN
   await expect(invitedPage).toHaveURL(/\/login$/);
   await signIn(invitedPage, email);
 }
+
+test("invalid invitation link cannot show the password form", async ({ page }) => {
+  await page.goto("/invite?token=not-a-valid-token");
+  await expect(page.locator("#invite-password")).toHaveCount(0);
+  await expect(page.getByText(/Open the unique invitation link/i)).toBeVisible();
+});
 
 test("protected routes and actual registration field errors", async ({ page }) => {
   await page.goto("/app/work");
@@ -163,6 +172,10 @@ test("real browser: owner invites employee, assigns, reviews and approves work",
     const invitationUrl = await invitationLink.getAttribute("href");
 
     await employee.goto(invitationUrl);
+    // A real database invitation must identify the company and role before password entry.
+    await expect(employee.locator(".invite-verified-details strong")).toHaveText(`Browser Company ${id}`);
+    await expect(employee.locator(".invite-verified-details dd").first()).toContainText("EMPLOYEE");
+    await expect(employee.locator(".invite-verified-details dd").nth(1)).toHaveText(unitName);
     await employee.locator("#invite-first").fill("Employee");
     await employee.locator("#invite-last").fill("Tester");
     await employee.locator("#invite-password").fill(PASSWORD);
