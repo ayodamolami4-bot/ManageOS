@@ -106,6 +106,43 @@ async function createScopedTeamLead(companyId, ownerId, unitId) {
   return leadId;
 }
 
+test("PostgreSQL: fake and expired signup links never create a company", {
+  skip: process.env.RUN_DB_INTEGRATION !== "1"
+}, async () => {
+  const guest = await newClient();
+  const suffix = Date.now().toString(36);
+  const email = "unverified-" + suffix + "@manageos.test";
+  const companyName = "Unverified Company " + suffix;
+  const data = { companyName, firstName: "Unverified", lastName: "Tester",
+    email, password: secret };
+
+  const start = await guest.post("/api/auth/register/company", data);
+  assert.equal(start.status, 202, JSON.stringify(start.body));
+  const token = start.body.data.testVerificationToken;
+  assert.match(token, /^[a-f0-9]{64}$/);
+  const company = await pool.query("SELECT id FROM companies WHERE name=$1", [companyName]);
+  assert.equal(company.rows.length, 0);
+  const account = await pool.query("SELECT id FROM users WHERE email=$1", [email]);
+  assert.equal(account.rows.length, 0);
+
+  const wrongToken = await guest.post("/api/auth/verify-company", { token: "c".repeat(64) });
+  assert.equal(wrongToken.status, 400);
+  const resend = await guest.post("/api/auth/register/company", data);
+  assert.equal(resend.status, 429);
+
+  await pool.query(
+    "UPDATE pending_company_registrations SET expires_at=NOW()-INTERVAL '1 minute' WHERE email=$1",
+    [email]
+  );
+  const expired = await guest.post("/api/auth/verify-company", { token });
+  assert.equal(expired.status, 400);
+  const denied = await guest.post("/api/auth/login", { email, password: secret });
+  assert.equal(denied.status, 401);
+  const after = await pool.query("SELECT id FROM companies WHERE name=$1", [companyName]);
+  assert.equal(after.rows.length, 0);
+  await pool.query("DELETE FROM pending_company_registrations WHERE email=$1", [email]);
+});
+
 test("PostgreSQL: company workflow, requests and tenant security", { skip: process.env.RUN_DB_INTEGRATION !== "1" }, async (t) => {
   const owner = await newClient();
   const employee = await newClient();
